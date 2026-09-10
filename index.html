@@ -134,6 +134,19 @@ methodology results that changed our own conclusions by an order of magnitude. S
 <h2 id="method">2. Method</h2>
 
 <h3>2.1 Two stages that are both learned</h3>
+<figure>
+<img src="fig/arch.png" alt="TrackNet3D architecture">
+<figcaption><b>The system, and the three measurements that give it this shape.</b>
+The trunk finds the shuttle; the height head reads the shape of the whole flight and
+<em>not</em> the image; the homography supplies the horizontal position without being asked.
+(a) Three flights that are the same curve to within a pixel inside a five-frame window and
+metres apart outside it &mdash; the ambiguity a short window cannot resolve. (b) Feeding the
+trunk's 64-d feature at the detected point to the height head makes it worse, which is the
+strongest form of this paper's claim. (c) No signal the model can report predicts its own
+error; the solver's post-hoc fit residual does, and that is what gates the refinement.
+Vector source: <code>make_fig.py</code>, exported as SVG and PDF alongside the PNG.</figcaption>
+</figure>
+
 
 <p>The deployed system is a detector and a trajectory head. The detector is TrackNetV5-Lite,
 fine-tuned; the trajectory head reads the detected 2D track for a whole stroke together with
