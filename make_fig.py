@@ -38,7 +38,7 @@ mpl.rcParams.update({
 })
 INK, MUT, LINE, ACC, ACC2, SOFT = '#141b1e', '#5c6b70', '#c9d6d4', '#0e7c7b', '#c8481f', '#e9f3f2'
 GOLD, BLUE, WARM = '#a8791b', '#2f6ea8', '#fdf3ee'
-W_IN, H_IN = 7.2, 6.35
+W_IN, H_IN = 7.2, 8.05
 TITLE_PT, BODY_PT, HEAD_PT = 7.6, 6.4, 8.6
 
 
@@ -96,31 +96,31 @@ top = 0.925
 # ---------------------------------------------------------------- pipeline
 y = S.box(RX, top, RW, 'Broadcast frames',
           ['5 consecutive frames, 512 x 288, RGB + background difference'], fc=SOFT, ec=ACC)
-S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.022))
-y = S.box(RX, y - 0.022, RW, 'TrackNetV5-Lite trunk, fine-tuned',
+S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.030))
+y = S.box(RX, y - 0.030, RW, 'TrackNetV5-Lite trunk, fine-tuned',
           ['heatmap head kept and supervised  ->  soft-argmax (u, v)',
            'F1 95.58 against the released 96.77: the cost is recall, not precision'])
-S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.022))
-y = S.box(RX, y - 0.022, RW, 'One stroke of detections',
+S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.030))
+y = S.box(RX, y - 0.030, RW, 'One stroke of detections',
           ['the whole flight, 27 frames at the median, plus the venue camera',
            '(four court corners and a focal length, calibrated once)'])
-S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.022))
+S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.030))
 yh = y - 0.022
 y = S.box(RX, yh, RW, 'Height head  -  one number per frame',
           ['6-layer transformer, 192-d, over the stroke',
            'reads the track and the camera.  It does not read the image.'],
           fc=WARM, ec=ACC2, lw=1.3)
-S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.022))
-y = S.box(RX, y - 0.022, RW, 'Horizontal position  -  not predicted',
+S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.030))
+y = S.box(RX, y - 0.030, RW, 'Horizontal position  -  not predicted',
           ['(X, Y) = xy_from_uvz(G, col3, (u, v), Z),  closed form',
            'exact to 0.031 m on the labels; regressing it costs 0.152 vs 0.113 m'])
-S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.022))
-y = S.box(RX, y - 0.022, RW, 'Optional refinement, gated',
+S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.030))
+y = S.box(RX, y - 0.030, RW, 'Optional refinement, gated',
           ['paper 1 ’s constrained solver, started from OUR estimate',
            'accepted only where its own fit residual is  <=  20 px  (80% of strokes)'],
           fc=SOFT, ec=ACC)
-S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.022))
-y = S.box(RX, y - 0.022, RW, '3D trajectory in court metres',
+S.arrow((RX + RW / 2, y), (RX + RW / 2, y - 0.030))
+y = S.box(RX, y - 0.030, RW, '3D trajectory in court metres',
           ['0.351 m median against paper 1, 6.9% of frames within 5 cm',
            'no camera is estimated by the trajectory head at inference'],
           fc=SOFT, ec=ACC)
@@ -131,11 +131,38 @@ def arc(t, z0, vz, drag=0.9):
     return z0 + vz * t - 0.5 * 9.81 * t ** 2 - drag * t ** 3
 
 
-ph = 0.185
+ph = 0.150
 py = 0.925
 
+# (0) what the camera actually gives
+S.note(LX, py + 0.012, 'a.  What the camera gives', color=INK, style='normal',
+       ha='left', weight='bold', fs=BODY_PT)
+_fr = plt.imread('fig/src/frame.png')          # already RGB on disk
+_su, _sv = np.load('fig/src/meta.npy')[:2]
+axf = S.panel(LX, py, LW, LW * (288 / 512) * (W_IN / H_IN))
+axf.imshow(_fr)
+axf.add_patch(plt.Circle((_su, _sv), 13, fill=False, ec=ACC2, lw=1.2))
+axf.set_xlim(0, 512); axf.set_ylim(288, 0)
+_fh = LW * (288 / 512) * (W_IN / H_IN)
+_cw = LW * 0.455
+_ch = _cw * (W_IN / H_IN)
+for i, (fn, lab) in enumerate([('fig/src/crop_rgb.png', 'RGB'),
+                               ('fig/src/crop_diff.png', 'background diff.')]):
+    axc = S.panel(LX + i * (LW - _cw), py - _fh - 0.014, _cw, _ch)
+    axc.imshow(plt.imread(fn))
+    S.note(LX + i * (LW - _cw) + _cw / 2, py - _fh - 0.014 - _ch - 0.011, lab,
+           fs=BODY_PT - 1.1, style='normal')
+S.note(LX, py - _fh - _ch - 0.062,
+       'The shuttle is circled: 7 px across at broadcast', ha='left', fs=BODY_PT - 0.8)
+S.note(LX, py - _fh - _ch - 0.062 - S.ls,
+       'resolution. It is the difference channel, not the', ha='left', fs=BODY_PT - 0.8)
+S.note(LX, py - _fh - _ch - 0.062 - 2 * S.ls,
+       'RGB, that makes it unambiguous.', ha='left', fs=BODY_PT - 0.8)
+
+py = py - _fh - _ch - 0.062 - 3 * S.ls - 0.045
+
 # (a) five frames cannot fix a height
-S.note(LX, py + 0.012, 'a.  Why five frames are not enough', color=INK, style='normal',
+S.note(LX, py + 0.012, 'b.  Why five frames are not enough', color=INK, style='normal',
        ha='left', weight='bold', fs=BODY_PT)
 ax = S.panel(LX, py, LW, ph)
 t = np.linspace(0, 0.95, 300)
@@ -167,7 +194,7 @@ S.note(LX, py - ph - 0.026 - S.ls,
 
 # (b) pixels do not help the height head
 py2 = py - ph - 0.105
-S.note(LX, py2 + 0.012, 'b.  Adding pixels makes it worse', color=INK, style='normal',
+S.note(LX, py2 + 0.012, 'c.  Adding pixels makes it worse', color=INK, style='normal',
        ha='left', weight='bold', fs=BODY_PT)
 ax = S.panel(LX, py2, LW, ph * 0.78)
 bars = [('track only', 0.321, ACC), ('+ trunk features', 0.510, ACC2)]
@@ -183,7 +210,7 @@ S.note(LX, py2 - ph * 0.78 - 0.026 - S.ls,
 
 # (c) the model cannot gate itself, the solver can
 py3 = py2 - ph * 0.78 - 0.105
-S.note(LX, py3 + 0.012, 'c.  Who knows when the answer is wrong', color=INK, style='normal',
+S.note(LX, py3 + 0.012, 'd.  Who knows when the answer is wrong', color=INK, style='normal',
        ha='left', weight='bold', fs=BODY_PT)
 ax = S.panel(LX, py3, LW, ph * 0.80)
 sig = [('detector conf.', 0.018), ('trajectory jerk', 0.099), ('closed-form scale', 0.025),
@@ -203,10 +230,13 @@ S.note(LX, py3 - ph * 0.80 - 0.026 - 2 * S.ls,
        'its fit after the fact; the gate reads that.', ha='left', fs=BODY_PT - 0.8)
 
 # ---------------------------------------------------------------- footer
-S.note(0.5, 0.030,
-       'Height error reaches 3D error through the closed form with a measured gain of 4.1x:',
+S.note(RX + RW / 2, y - 0.055,
+       'Height error reaches 3D error through the closed form',
        color=INK, fs=BODY_PT - 0.2)
-S.note(0.5, 0.030 - S.ls, 'one centimetre of height is four centimetres of position.',
+S.note(RX + RW / 2, y - 0.055 - S.ls,
+       'with a measured gain of 4.1x: one centimetre of height',
+       color=INK, fs=BODY_PT - 0.2)
+S.note(RX + RW / 2, y - 0.055 - 2 * S.ls, 'is four centimetres of position.',
        color=INK, fs=BODY_PT - 0.2)
 S.save('fig/arch')
 print('fig/arch.svg / .pdf / .png')
