@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrackNet3D</title>
+<meta name="description" content="TrackNet3D: predicting metric 3D shuttlecock coordinates directly from raw broadcast frames, with no camera calibration at inference, trained on the pseudo-labels of the SimTrack3D pipeline.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+
+:root{
+  --ink:#141b1e; --muted:#5c6b70; --line:#dfe6e5; --ground:#fbfcfc; --surface:#ffffff;
+  --acc:#0e7c7b; --acc2:#e8552f; --soft:#e9f3f2; --warm:#fdf3ee;
+  --serif:"Source Serif 4",Georgia,serif; --sans:"Source Sans 3","Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--ground)}
+body{margin:0;color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6}
+.page{max-width:920px;margin:0 auto;padding:48px 24px 96px}
+header{text-align:center;margin-bottom:36px}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(26px,4vw,38px);line-height:1.2;margin:0 0 14px;text-wrap:balance}
+.authors{font-size:17px;margin:0 0 4px}
+.affil{color:var(--muted);font-size:15px;margin:0 0 18px}
+.links{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.links a{font-family:var(--mono);font-size:13px;padding:7px 14px;border:1px solid var(--line);border-radius:999px;color:var(--ink);text-decoration:none;background:var(--surface)}
+.links a:hover{border-color:var(--acc);color:var(--acc)}
+.links a.on{border-color:var(--acc);color:var(--acc);background:var(--soft)}
+figure{margin:28px 0}
+figure img{display:block;width:100%;border:1px solid var(--line);border-radius:4px;background:#fff}
+figcaption{font-size:14.5px;color:var(--muted);margin-top:10px;line-height:1.5}
+figcaption b{color:var(--ink)}
+h2{font-family:var(--serif);font-weight:600;font-size:24px;margin:52px 0 12px;padding-top:14px;border-top:1px solid var(--line)}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 14px}
+.abstract{font-size:16.5px;background:var(--soft);padding:20px 24px;border-radius:6px;border-left:3px solid var(--acc)}
+.status{background:var(--warm);border:1px solid #f0c9b6;border-left:3px solid var(--acc2);border-radius:6px;padding:16px 20px;margin:22px 0;font-size:16px}
+.status b{display:block;font-family:var(--serif);font-size:17px;margin-bottom:4px}
+.contrib{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:12px}
+.contrib li{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:4px;padding:14px 18px;font-size:16px}
+.contrib b{display:block;font-family:var(--serif);font-size:17px;margin-bottom:3px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:18px 0}
+.kv div{background:var(--surface);padding:12px 14px}
+.kv b{display:block;font-family:var(--mono);font-size:20px;font-weight:500;color:var(--acc)}
+.kv span{font-size:13px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:14.5px;margin:12px 0 6px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted);font-size:13px;letter-spacing:.02em;border-bottom:2px solid var(--line)}
+td.bad{color:var(--acc2);font-weight:600}
+td.good{color:var(--acc);font-weight:600}
+td.todo{color:var(--muted);font-style:italic}
+.tw{overflow-x:auto}
+.note{font-size:14.5px;color:var(--muted);border-left:3px solid var(--line);padding:2px 0 2px 14px;margin:14px 0}
+code{font-family:var(--mono);font-size:.9em;background:var(--soft);padding:1px 5px;border-radius:3px}
+pre{font-family:var(--mono);font-size:13px;background:var(--soft);padding:14px 16px;border-radius:6px;overflow-x:auto}
+h4{font-size:15.5px;font-weight:600;margin:20px 0 6px;color:var(--muted)}
+.eq{margin:16px 0;overflow-x:auto}
+.draft{background:var(--warm);border:1px solid #f0c9b6;border-left:3px solid var(--acc2);border-radius:6px;padding:16px 20px;margin:22px 0;font-size:15.5px}
+.draft b{display:block;font-family:var(--serif);font-size:17px;margin-bottom:4px;color:var(--ink)}
+.tbd{color:var(--acc2);font-style:italic;font-weight:600;font-size:.92em}
+.foot{color:var(--muted);font-size:13.5px;margin-top:48px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head><body>
+<div class="page">
+<header>
+<h1>TrackNet3D: Metric 3D Shuttlecock Trajectories from Broadcast Video<br>without Camera Parameters at Inference</h1>
+<p class="authors">Working draft &middot; 2026-09-11</p>
+<p class="affil">Companion to SimTrack3D (paper 1). This paper is a separate contribution and shares only that paper's labels.</p>
+<div class="links">
+  <a href="#results" class="on">Results</a>
+  <a href="#ceiling">What the labels support</a>
+  <a href="#ablation">Ablations</a>
+  <a href="#limits">Limitations</a>
+</div>
+</header>
+
+<p class="abstract"><b>Abstract.</b> We reconstruct metric 3D shuttlecock trajectories from monocular broadcast
+video. The deployed model takes pixels and a court calibration and emits court-frame
+coordinates in metres; no camera parameters are estimated at inference by the trajectory
+head. Our central finding is negative about capacity and positive about time: a
+192-dimensional model that <em>never sees a pixel</em> — given only the whole stroke's 2D track and
+the venue's camera — reaches a median 3D error of 0.319&nbsp;m against paper 1's coordinates,
+while the end-to-end pixel model reading five frames reaches 1.030&nbsp;m. Five frames is
+0.167&nbsp;s, over which a shuttle's arc is nearly straight and its height is not observable;
+one stroke is 27 frames at the median. Extending context past one stroke does not help and
+slightly hurts, because the extra frames belong to a different arc across a racket impact.
+We also report what did not work, with numbers, because several of those attempts are the
+obvious ones: three formulations of physics, a scene depth map from a monocular foundation
+model, trunk pixel features, higher capacity, a stronger detector, and running paper 1's own
+constrained solver on our detections. A hybrid does work — our estimate as that solver's
+starting point, accepted only where the solver's own fit residual is small — and improves
+the median by 16% and the fraction of frames within 5&nbsp;cm from 3.6% to 6.9%.</p>
+
+<div class="status"><b>Status of this draft</b>
+Every number below is measured and traceable to a log in the companion package; none are
+estimates. Section&nbsp;4.1 corrects a claim an earlier version of this work made about the label
+ceiling, and states why the earlier measurement was wrong &mdash; the correction moved the
+conclusion by an order of magnitude, from "no method can reach 5&nbsp;cm" to "the floor is
+4.9&nbsp;cm and we are 18&times; above it".</div>
+
+<h2 id="intro">1. Introduction</h2>
+
+<p>A shuttlecock's 3D position is the quantity badminton analytics wants and monocular video
+does not directly give. The standard route is two stages: track the ball in 2D, then lift
+that track to 3D with a calibrated camera and a flight model. Paper 1 (SimTrack3D) builds
+such a pipeline and produces the 3D coordinates this paper is measured against.</p>
+
+<p>This paper asks whether the lift can be learned — amortised into a network that consumes
+the same inputs and produces the answer in one pass, without running an optimiser per stroke.
+That question has an obvious appeal (speed, differentiability, no per-stroke failure modes)
+and a non-obvious answer, which is that the amortised model is not merely competitive with
+the optimiser it imitates but <em>more robust</em> than it, because the optimiser is fragile to the
+heavy tail of a real detector while a model trained on that same noise is not.</p>
+
+<ul class="contrib">
+<li><b>Temporal context, not visual capacity, is the lever.</b> A pixel-free model on the whole
+stroke beats an end-to-end pixel model on five frames by 2.5&times;. The gain saturates exactly
+at one stroke: extending to 96 frames across stroke boundaries is worse.</li>
+<li><b>The amortised model beats the optimiser it imitates.</b> Running paper 1's constrained
+solver on our detections gives 0.765&nbsp;m; the learned model gives 0.333&nbsp;m on the same
+detections. The solver's feasible rate falls 92.3%&nbsp;&rarr;&nbsp;86.3% and its own residual rises
+10.8&nbsp;&rarr;&nbsp;78.2&nbsp;px under a detector with a 26.9&nbsp;px p90.</li>
+<li><b>But the solver supplies the confidence signal the model cannot.</b> No inference-time
+signal we could extract from the model predicts its own error (|&rho;|&nbsp;&le;&nbsp;0.10 for detector
+confidence, trajectory jerk, and the closed-form scale). The solver's post-hoc fit residual
+does, and gating on it makes a refinement pass improve the median, the RMSE and the 5&nbsp;cm hit
+rate simultaneously — which accepting every refinement does not.</li>
+<li><b>Label quality must be measured per corpus, and evaluation must use detected 2D.</b> Two
+methodology results that changed our own conclusions by an order of magnitude. Section&nbsp;5.</li>
+</ul>
+
+<h2 id="method">2. Method</h2>
+
+<h3>2.1 Two stages that are both learned</h3>
+
+<p>The deployed system is a detector and a trajectory head. The detector is TrackNetV5-Lite,
+fine-tuned; the trajectory head reads the detected 2D track for a whole stroke together with
+the venue's calibration and emits one height per frame. The horizontal position is not
+predicted. Given the ground homography and the focal length, the court-plane position is
+determined by the image position and the height, and solving it in closed form rather than
+regressing it removes two of three degrees of freedom:</p>
+
+<div class="eq"><code>(X, Y) = xy_from_uvz(G, col3, (u, v), Z)</code></div>
+
+<p>This is exact to 0.031&nbsp;m median on paper 1's labels — the residual of the parameterisation
+itself, measured by feeding it the true pixel, the true height and the true camera. Predicting
+X and Y freely instead spends capacity re-deriving something the image already fixes, and
+measurably so: the free-head variant's horizontal error is 0.152&nbsp;m against 0.113&nbsp;m for the
+geometric one.</p>
+
+<h3>2.2 Why the height head reads a whole stroke</h3>
+
+<p>Height is the one quantity a single view does not constrain. Over five frames — 0.167&nbsp;s —
+a shuttle's arc is nearly a straight line, and a straight line in the image is consistent with
+a one-parameter family of 3D lines. Over a whole stroke, gravity and drag bend the arc, and the
+bend is what fixes the height. The median stroke in this data is 27 frames.</p>
+
+<p>The head is a six-layer, 192-dimensional transformer over the stroke's frames. Its inputs are
+the detected pixel, its time derivative, the frame time, and a nine-number summary of the venue
+camera. It does not read the image. That is not an architectural preference but the experiment:
+adding the trunk's pixel features at the detected point makes it <em>worse</em> (§4.3).</p>
+
+<h3>2.3 Mirroring is exact, and it is the only augmentation that helps</h3>
+
+<p>A badminton court is symmetric under X&nbsp;&rarr;&nbsp;W&nbsp;&minus;&nbsp;X. Reflecting the pixel about the image
+centre, permuting which physical corner carries which court coordinate, and negating the court
+X gives a track a real camera on the other side would have produced — not an approximation.
+It halves the overfitting gap (train/unseen 0.17/0.27&nbsp;&rarr;&nbsp;0.14/0.22) and takes the median from
+0.277&nbsp;m to 0.204&nbsp;m.</p>
+
+<h2 id="results">3. Results</h2>
+
+<h3>3.1 Setup</h3>
+
+<p>Thirty-three venues, 222,509 labelled frames, 9,342 strokes. Twenty-seven come from paper 1's
+automatic calibration; six were calibrated by hand for this paper (four court corners and two
+net-post tops per venue, which is the minimum that determines a camera — the court alone is
+coplanar and leaves the focal free). Seven venues are held out, including all three of
+TrackNetV3's test matches: the released TrackNetV5 never saw those, so leaving them in training
+would score us on ground only one of the two models has read.</p>
+
+<p><b>Every stroke-level number is measured with the model's own detections as input</b>, not the
+label track. This matters more than it sounds: see §5.2.</p>
+
+<h3>3.2 Main result</h3>
+
+<p>Scored against paper 1's coordinates on its held-out venue (998 strokes, 26,725 frames).
+"&le;5&nbsp;cm" is the fraction of frames within 5&nbsp;cm; RMSE&nbsp;95 trims the worst 5%, because RMSE on
+this data is a tail statistic (§5.1).</p>
+
+<div class="tw"><table>
+<tr><th>method</th><th>median (m)</th><th>RMSE 95 (m)</th><th>&le;5 cm</th></tr>
+<tr><td>end-to-end, 5 frames, free xyz head</td><td>0.985</td><td>1.511</td><td>0.1%</td></tr>
+<tr><td>end-to-end, 5 frames, geometric head</td><td>0.951</td><td>1.519</td><td>0.3%</td></tr>
+<tr><td>stroke-level height head (this work)</td><td>0.417</td><td>0.929</td><td>3.6%</td></tr>
+<tr><td>&nbsp;&nbsp;+ solver refinement, every stroke</td><td>0.386</td><td class="bad">1.107</td><td>6.7%</td></tr>
+<tr><td>&nbsp;&nbsp;+ solver refinement, gated on its residual</td><td class="good">0.351</td><td class="good">0.878</td><td class="good">6.9%</td></tr>
+<tr><td><i>perfect model (label self-consistency)</i></td><td><i>0.031</i></td><td><i>0.049</i></td><td><i>71.9%</i></td></tr>
+</table></div>
+
+<p>Three things are worth reading off this table. The stroke-level head beats the five-frame
+end-to-end model by 2.4&times;, and the geometric parameterisation does not rescue the five-frame
+model (§6). Accepting <em>every</em> solver refinement improves the median while making the RMSE
+worse: the optimiser makes good estimates better and bad ones worse, which is what the gate
+is for. And the fraction of frames within 5&nbsp;cm moves from 0.1% to 6.9% across the table,
+which is the figure a downstream analytics use actually cares about.</p>
+
+<p>Paper 1's solver <em>run on its own</em> from our detections is not in the table because it is
+scored on a different set — the TrackNetV3 venues, where we can regenerate its input. There it
+gives a clean-subset median of 0.765&nbsp;m against the learned model's 0.333&nbsp;m on the same
+detections: <b>the amortised model is 2.3&times; more accurate than the optimiser it was trained to
+imitate.</b> The optimiser's feasible rate falls 92.3%&nbsp;&rarr;&nbsp;86.3% and its own fit residual rises
+10.8&nbsp;&rarr;&nbsp;78.2&nbsp;px when fed a detector with a 26.9&nbsp;px p90; a model trained on that same noise
+absorbs it. This is why §3.3 uses the solver as a <em>refiner</em> and never on its own.</p>
+
+
+<figure>
+<img src="fig/recon.gif" alt="Reconstruction against paper 1's coordinates">
+<figcaption><b>Three held-out strokes, picked by error quantile</b> (p25 0.22&nbsp;m, p50 0.37&nbsp;m,
+p75 0.74&nbsp;m) rather than by length &mdash; the longest strokes are the worst ones and showing
+those alone misrepresents the result in the other direction. Orange is paper 1's coordinates,
+the target; blue is ours. The right panel looks down on the court, which is the only view in
+which the camera's depth direction is not foreshortened, and it is where nearly all the error
+lives. The visible jitter in the blue track is the physical incoherence measured in &sect;5.1:
+fitting a flyable arc through it moves the points by 0.45&nbsp;m and barely changes the error.</figcaption>
+</figure>
+
+<h3>3.3 The gate</h3>
+
+<p>We could find no signal available at inference that predicts the model's own error. Detector
+confidence, the trajectory's third difference, and the closed-form scale all have
+|&rho;|&nbsp;&le;&nbsp;0.10 against the 3D error, and selecting the smoothest 10% of frames gives 0.407&nbsp;m —
+worse than the 0.319&nbsp;m overall median. The model cannot tell when it is right.</p>
+
+<p>The solver can. Its <code>rms_px</code> measures how well the refined track explains the pixels it
+was fitted to — a post-hoc measurement, not a prediction — and gating on it recovers the
+refinement's gain without its cost:</p>
+
+<div class="tw"><table>
+<tr><th>gate</th><th>refinements accepted</th><th>median (m)</th><th>RMSE 95 (m)</th><th>&le;5 cm</th></tr>
+<tr><td>none (model only)</td><td>0%</td><td>0.417</td><td>0.929</td><td>3.6%</td></tr>
+<tr><td>rms &le; 6 px</td><td>47.2%</td><td>0.394</td><td>0.912</td><td>5.6%</td></tr>
+<tr><td>rms &le; 10 px</td><td>72.3%</td><td>0.359</td><td>0.886</td><td>6.7%</td></tr>
+<tr><td>rms &le; 20 px</td><td>80.0%</td><td class="good">0.351</td><td class="good">0.878</td><td class="good">6.9%</td></tr>
+<tr><td>accept all</td><td>100%</td><td>0.386</td><td class="bad">1.107</td><td>6.7%</td></tr>
+</table></div>
+
+<h3>3.4 What the extra output costs the detector</h3>
+
+<p>Scored TrackNetV5's own way — binarise the heatmap at 0.5, take the largest-area contour,
+4&nbsp;px tolerance at 512&times;288, one row per frame — on 55,387 TrackNetV3 frames:</p>
+
+<div class="tw"><table>
+<tr><th>model</th><th>F1</th><th>precision</th><th>recall</th></tr>
+<tr><td>TrackNetV5-Lite, released</td><td>96.77</td><td>99.29</td><td>94.38</td></tr>
+<tr><td>same trunk, also emitting 3D</td><td>95.58</td><td>99.18</td><td>92.23</td></tr>
+</table></div>
+
+<p>The cost is 1.19 F1 points and it is <em>entirely recall</em>: precision is unchanged to within a
+tenth of a point. Adding the 3D output did not make detections sloppier; it made the detector
+more conservative, so more frames fail to cross the threshold. A soft-argmax evaluation cannot
+see this — it returns a coordinate for every frame and so can never record a miss — which is
+why we report the released protocol rather than a median pixel distance.</p>
+
+<h2 id="ceiling">4. What the labels can support</h2>
+
+<h3>4.1 Measure the ceiling per corpus</h3>
+
+<p>Feeding the closed form the label's own pixel, the label's own height and the venue's camera
+gives a residual against the label's own horizontal position that no model can escape. Measured
+over the whole training index it is 53.4&nbsp;m RMSE, which we initially read as an arithmetic wall:
+a 5&nbsp;cm target would be unreachable by any method. <b>That reading was wrong</b>, and the error is
+worth stating because it is easy to repeat.</p>
+
+<div class="tw"><table>
+<tr><th>corpus</th><th>frames</th><th>median (m)</th><th>&le;5 cm</th><th>&le;10 cm</th></tr>
+<tr><td>2025 singles &mdash; paper 1's own 3D</td><td>165,449</td><td class="good">0.031</td><td>71.9%</td><td>89.9%</td></tr>
+<tr><td>TrackNetV3 &mdash; regenerated by us</td><td>56,762</td><td class="bad">0.273</td><td>13.7%</td><td>26.2%</td></tr>
+</table></div>
+
+<p>The two halves differ by 8.7&times;, and the dirtier half was <em>our own</em> regeneration of paper 1's
+pipeline, not paper 1's output. Measuring them together let the worse half define the ceiling.</p>
+
+<p>The remaining RMSE on paper 1's own coordinates comes from 128 frames — 0.077% — where the
+viewing ray is nearly parallel to the plane at that height and the closed form diverges, with a
+maximum residual of 20,963&nbsp;m. That is a numerical degeneracy, not a data defect:</p>
+
+<div class="tw"><table>
+<tr><th>trimmed</th><th>kept</th><th>perfect-model RMSE (m)</th><th>median (m)</th></tr>
+<tr><td>0%</td><td>100%</td><td class="bad">55.67</td><td>0.031</td></tr>
+<tr><td>0.1%</td><td>99.9%</td><td>0.294</td><td>0.031</td></tr>
+<tr><td>1%</td><td>99.0%</td><td>0.098</td><td>0.031</td></tr>
+<tr><td>5%</td><td>95.0%</td><td class="good">0.049</td><td>0.030</td></tr>
+</table></div>
+
+<p class="note">Two lessons, both cheap to apply. Split label-quality measurements by provenance
+before quoting a ceiling. And strip the degenerate closed-form frames before computing any RMSE,
+because a hundred of them out of two hundred thousand set the number by themselves.</p>
+
+<h3>4.2 Evaluate with detected 2D, not label 2D</h3>
+
+<p>Every stroke-level result we produced before noticing this was fed the label's 2D track as
+input — a ground truth the model does not have at inference. The gap is not small:</p>
+
+<div class="tw"><table>
+<tr><th>2D input to the height head</th><th>clean-subset median (m)</th><th>p75 (m)</th></tr>
+<tr><td>label track (not available at inference)</td><td>0.204</td><td>0.395</td></tr>
+<tr><td>the model's own detections</td><td class="bad">0.659</td><td>1.434</td></tr>
+<tr><td>the model's own detections, and trained on them</td><td>0.328</td><td>0.695</td></tr>
+</table></div>
+
+<p>Detected and label tracks differ by 4.01&nbsp;px at the median and 26.9&nbsp;px at p90, and the tail is
+missed and mistaken detections. Training on the clean track and deploying on the dirty one costs
+3.2&times;; training on the dirty track recovers most of it. Any paper reporting the first row alone
+is overstating by that factor.</p>
+
+<h2 id="ablation">5. What did not work</h2>
+
+<p>Eleven attempts, all measured on the same protocol. We report them because most are the
+obvious next thing to try, and because two of them — physics and depth — are what a reader
+would reasonably assume we had simply failed to attempt.</p>
+
+<h3>5.1 Physics, three ways</h3>
+
+<div class="tw"><table>
+<tr><th>formulation</th><th>clean-subset median (m)</th><th>vs no physics</th></tr>
+<tr><td>no physics (free per-frame height)</td><td class="good">0.204</td><td>&mdash;</td></tr>
+<tr><td>soft penalty on the path's second difference</td><td>0.271</td><td>worse</td></tr>
+<tr><td>hard: four launch numbers, differentiable RK4</td><td class="bad">0.294</td><td>worse</td></tr>
+<tr><td>post-hoc ballistic fit to the model's output</td><td colspan="2">RMSE 1.907 &rarr; 1.796 m (6%)</td></tr>
+</table></div>
+
+<p>The post-hoc experiment explains the other two. Fitting a flyable arc through the model's
+per-frame output moves those points by 0.45&nbsp;m at the median — the output <em>is</em> physically
+incoherent — and yet the error against the labels barely improves. The error is a systematic
+displacement, not jitter, and a flyable path through displaced points is still displaced.
+Constraining the whole stroke to one arc then makes it worse, because a single arc cannot absorb
+the labels' own non-ballistic residual and an error in the launch state rides the entire path.</p>
+
+<p class="note">Two implementation traps here cost a day each and are worth naming. A
+finite-difference acceleration at 30&nbsp;fps turns a 1&nbsp;m position error into ~900&nbsp;m/s&sup2; against a
+9.81&nbsp;m/s&sup2; signal, so an unnormalised physics penalty is dominated by the noise it is meant to
+suppress (we observed a loss of 1.2&times;10<sup>5</sup> at epoch 1). And the closed-form solve returns a
+huge horizontal position when the ray is near-parallel to the height plane; the sign guard does
+not bound the magnitude, so one degenerate frame can carry an entire batch (loss 1.5&times;10<sup>3</sup>).</p>
+
+<h3>5.2 Depth, two ways</h3>
+
+<p>Depth Anything V2 on each venue's median background gives a scene depth map for 999 forward
+passes rather than 222,509 — the court does not move, and the background image has no shuttle in
+it by construction, which is the right place to ask for depth. A two-parameter fit against the
+known camera carries it into metres to 7.7&nbsp;cm over a 13.7&nbsp;m court span, 0.55% relative. The map
+is good. It does not help.</p>
+
+<div class="tw"><table>
+<tr><th>use</th><th>unseen 3D median (m)</th></tr>
+<tr><td>no depth</td><td>1.030</td></tr>
+<tr><td>as a fifth input, concatenated after the R(2+1)D stage</td><td>1.044</td></tr>
+<tr><td>as an auxiliary regression target on the decoder features</td><td>1.101</td></tr>
+</table></div>
+
+<p>The auxiliary head learns its target (its loss halves, 0.241&nbsp;&rarr;&nbsp;0.121) and the training loss
+tracks the baseline to within 0.003. The court's geometry is already recoverable from the image;
+what is missing is the shuttle's own depth, and a static scene map does not contain it.</p>
+
+<h3>5.3 Everything else</h3>
+
+<div class="tw"><table>
+<tr><th>attempt</th><th>result</th><th>baseline</th></tr>
+<tr><td>trunk pixel features at the detected point, fed to the height head</td><td class="bad">0.510</td><td>0.321</td></tr>
+<tr><td>context extended past one stroke (96-frame sliding window)</td><td class="bad">0.362</td><td>0.319</td></tr>
+<tr><td>whole rallies as sequences</td><td colspan="2">9,342 samples &rarr; 960; not viable</td></tr>
+<tr><td>training on clean labels only (rms &lt; 5 px)</td><td>0.309</td><td>0.204</td></tr>
+<tr><td>higher capacity (384-d, 10 layers)</td><td class="bad">0.372</td><td>0.204</td></tr>
+<tr><td>the released detector instead of ours (p90 26.9 &rarr; 20.8 px)</td><td>0.328</td><td>0.333</td></tr>
+<tr><td>paper 1's lifter output as an input prior</td><td>0.335</td><td>0.337</td></tr>
+<tr><td>restricting training to paper 1's own corpus</td><td>0.337</td><td>0.319</td></tr>
+</table></div>
+
+<p>Three of these are informative beyond being negative. Pixel features hurt, which is the
+strongest form of the paper's main claim. Context past one stroke hurts, because the extra
+frames belong to a different arc across a racket impact — the lever saturates exactly at the
+physical unit. And a 23% better detector at p90 buys 1.5% of 3D accuracy, so the bottleneck is
+not detection.</p>
+
+<h2 id="limits">6. Limitations</h2>
+
+<p><b>The gap to the label ceiling is 12&ndash;18&times;.</b> Our best is 0.351&nbsp;m median and 0.878&nbsp;m
+RMSE&nbsp;95 against a perfect-model floor of 0.031&nbsp;m and 0.049&nbsp;m. In height terms the model is at
+0.088&nbsp;m and the floor needs about 0.012&nbsp;m; the closed form amplifies height error into 3D error
+by a measured factor of 4.1, so every centimetre of height is worth four of position.</p>
+
+<p><b>The trajectory head needs a calibrated venue.</b> Predicting the camera end-to-end was tried
+and is worse (1.084&nbsp;m against 1.030&nbsp;m) because the camera head does not generalise: 1.1&nbsp;px of
+corner error on venues it trained on, 19.8&nbsp;px on ones it did not. On seen venues the reprojection
+identity holds as designed (2.1&nbsp;px). The claim this paper makes is therefore narrower than
+"no calibration": it is that the <em>trajectory</em> head needs no camera parameters beyond the
+venue's fixed calibration, which is measured once.</p>
+
+<p><b>One held-out venue in paper 1's corpus.</b> The primary comparison rests on a single unseen
+venue (998 strokes). The six venues we calibrated by hand were verified for orientation and for
+focal plausibility, but the net-cord sag gate that paper 1 credits with catching geometrically
+wrong fits is dead code in the packaged solver and did not run on them.</p>
+
+<p><b>What we would try next.</b> The camera table's poses for the eight 2025 venues come from
+orthonormalising a non-rigid projection, and carry an unquantified error whose upper bound is a
+25&nbsp;px reprojection displacement. Camera error enters height directly, and at 4.1&times; it is a
+plausible share of the remaining gap.</p>
+
+<h2>BibTeX</h2>
+<pre>@misc{tracknet3d2026,
+  title  = {TrackNet3D: Metric 3D Shuttlecock Trajectories from Broadcast Video
+            without Camera Parameters at Inference},
+  note   = {Working draft},
+  year   = {2026}
+}</pre>
+
+<p class="foot">All numbers are measured; logs and scripts are listed in the repository README.
+Paper 1 (SimTrack3D) is a separate contribution; this work uses its coordinates as the
+comparison target and does not restate its results.</p>
+</div>
+</body></html>
