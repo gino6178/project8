@@ -100,6 +100,17 @@ ceiling, and states why the earlier measurement was wrong &mdash; the correction
 conclusion by an order of magnitude, from "no method can reach 5&nbsp;cm" to "the floor is
 4.9&nbsp;cm and we are 18&times; above it".</div>
 
+
+<figure>
+<img src="fig/stages.png" alt="What the data looks like at each stage">
+<figcaption><b>What the data actually is at each stage</b>, on one held-out stroke chosen at the
+median of the per-stroke error rather than the best case. A 7&nbsp;px smudge becomes a heatmap,
+the heatmap becomes a stroke of detections, the stroke becomes one height per frame, and the
+height plus the homography becomes a metric arc. The last panel looks down on the court because
+that is the only view in which the camera's depth direction &mdash; where nearly all the error
+lives &mdash; is not foreshortened.</figcaption>
+</figure>
+
 <h2 id="intro">1. Introduction</h2>
 
 <p>A shuttlecock's 3D position is the quantity badminton analytics wants and monocular video
@@ -130,6 +141,23 @@ rate simultaneously — which accepting every refinement does not.</li>
 <li><b>Label quality must be measured per corpus, and evaluation must use detected 2D.</b> Two
 methodology results that changed our own conclusions by an order of magnitude. Section&nbsp;5.</li>
 </ul>
+
+
+<h3>1.1 The closest prior work, and what its numbers mean</h3>
+
+<p>MonoTrack reconstructs 3D badminton trajectories from monocular video with a nonlinear
+optimiser over a detected court, track and player poses, and is the natural point of comparison.
+Its headline 3D accuracy is measured on <em>synthetic</em> trajectories: 10,000 simulated shots
+with sampled initial conditions, where the error averages 14.9&nbsp;cm and improves to 8.0&nbsp;cm with
+priors, saturating near 5&nbsp;cm for the longest flights. On its real data &mdash; 77k annotated
+frames over 26 matches &mdash; it reports <b>reprojection</b> error only, at up to 37.1&nbsp;px,
+because real 3D ground truth was not available.</p>
+
+<p>That distinction sets the bar this paper is held to. A 5&nbsp;cm figure obtained on synthetic
+flights and a median error measured against an independent reconstruction of real broadcast
+video are not the same measurement, and our numbers should not be read against that one. What
+we can say is what the labels themselves support: on paper 1's coordinates a perfect model
+reaches 0.049&nbsp;m RMSE at 95% coverage (&sect;4.1), and we are at 0.878&nbsp;m.</p>
 
 <h2 id="method">2. Method</h2>
 

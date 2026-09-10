@@ -36,8 +36,17 @@ repository re-runs them; this repository is the write-up.
 | §5.2 | venue depth | `exp58_venue_depth.py`, `exp51 --depth`, `--depth-aux` |
 | §5.3 | remaining ablations | `exp60`, `exp64 --win`, `--corpus`, `--prior` |
 | figure | reconstruction GIF | `exp69_gif.py` → `out/exp69_recon.gif` |
+| figures | stage strip and architecture | `make_stages.py`, `make_fig.py` (SVG + PDF + PNG) |
 
 Established facts and the traps we hit are recorded in `~/paper3/CLAUDE.md`.
+
+## On the 5 cm figure people will compare against
+
+MonoTrack's widely quoted ~5 cm is measured on **synthetic** trajectories and is the
+saturation value for the longest flights; its synthetic average is 8.0 cm, and on real
+footage it reports reprojection error only (up to 37.1 px) because real 3D ground truth
+was not available. That is a different measurement from agreement with an independent
+reconstruction of real broadcast video, which is what this paper reports.
 
 ## Two methodology notes worth carrying to other work
 
