@@ -30,13 +30,25 @@ repository re-runs them; this repository is the write-up.
 | §3.2 | main table | `exp51_train_e2e_geom.py --eval`, `exp64_stroke_pixels.py` |
 | §3.3 | solver gate | `exp68_hybrid_solve.py` → `out/exp68_hybrid.csv` |
 | §3.4 | detector cost, TrackNetV5 protocol | `exp57_tnv5_metric.py` → `out/exp57_tnv5_metric.csv` |
-| §4.1 | label ceiling, per corpus | `out/p2_label_selfres.npy` |
-| §4.2 | label-2D vs detected-2D | `exp63_cache_feats.py`, `exp64 --det-uv` |
-| §5.1 | physics, three ways | `exp59_physics_fit.py`, `exp61`, `exp62` |
-| §5.2 | venue depth | `exp58_venue_depth.py`, `exp51 --depth`, `--depth-aux` |
-| §5.3 | remaining ablations | `exp60`, `exp64 --win`, `--corpus`, `--prior` |
+| §4.1 | reprojection and physics, and which of them is an identity | `exp70_nogt_suite.py` → `out/exp70_ours.csv`, `_solver.csv` |
+| §4.2 | noise and held-frame stress sweep | `exp70_nogt_suite.py` → `out/exp70_stress.csv` |
+| §4.2 | the same net trained with a noise model | `exp64 --noise-aug 8`, then `exp70 --ckpt out/p1corpus_naug.pt --no-solver` → `out/exp70n_stress.csv` |
+| §4.3 | latency, throughput, frontier | `out/exp70_cost.csv` |
+| §4.4 | 25 unseen venues, one plausibility test on both | `exp71_zeroshot.py` → `out/exp71_strokes.csv` |
+| §5.1 | label ceiling, per corpus | `out/p2_label_selfres.npy` |
+| §5.2 | label-2D vs detected-2D | `exp63_cache_feats.py`, `exp64 --det-uv` |
+| §6.1 | physics, three ways | `exp59_physics_fit.py`, `exp61`, `exp62` |
+| §6.2 | venue depth | `exp58_venue_depth.py`, `exp51 --depth`, `--depth-aux` |
+| §6.3 | remaining ablations | `exp60`, `exp64 --win`, `--corpus`, `--prior` |
 | figure | reconstruction GIF | `exp69_gif.py` → `out/exp69_recon.gif` |
 | figures | stage strip and architecture | `make_stages.py`, `make_fig.py` (SVG + PDF + PNG) |
+| figure | stress and frontier | `make_stress.py` (SVG + PDF + PNG) |
+
+Two baselines are easy to measure wrongly and both were, once. Paper 1's solver
+must be run from **its own** lifter prior — seeding it with our estimate measures
+the hybrid of §3.3, not the baseline, and flatters it by nearly 2×. And the
+plausibility rate of §4.4 must use the same test on both outputs; the solver's own
+feasibility flag answers a different question.
 
 Established facts and the traps we hit are recorded in `~/paper3/CLAUDE.md`.
 
