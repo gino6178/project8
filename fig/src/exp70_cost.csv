@@ -1,0 +1,5 @@
+name,ms,err
+ours,1.6,0.413
+ours + noise aug,1.6,0.462
+paper 1 pipeline,400.1,0.709
+"hybrid, gated",401.7,0.375

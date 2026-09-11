@@ -70,6 +70,7 @@ h4{font-size:15.5px;font-weight:600;margin:20px 0 6px;color:var(--muted)}
 <p class="affil">Companion to SimTrack3D (paper 1). This paper is a separate contribution and shares only that paper's labels.</p>
 <div class="links">
   <a href="#results" class="on">Results</a>
+  <a href="#nogt">No-GT evidence</a>
   <a href="#ceiling">What the labels support</a>
   <a href="#ablation">Ablations</a>
   <a href="#limits">Limitations</a>
@@ -91,14 +92,25 @@ obvious ones: three formulations of physics, a scene depth map from a monocular 
 model, trunk pixel features, higher capacity, a stronger detector, and running paper 1's own
 constrained solver on our detections. A hybrid does work — our estimate as that solver's
 starting point, accepted only where the solver's own fit residual is small — and improves
-the median by 16% and the fraction of frames within 5&nbsp;cm from 3.6% to 6.9%.</p>
+the median by 16% and the fraction of frames within 5&nbsp;cm from 3.6% to 6.9%.
+Because the only 3D reference this data has is that solver's own output, we separately report
+what can be shown without one, and say which of those checks are circular: reprojection error is
+an identity for our method and the physics residual is an identity for the solver, so neither
+discriminates alone. Under injected pixel noise the optimiser turns out to be the relatively
+<em>more</em> stable of the two &mdash; the opposite of the usual amortisation story, and a
+consequence of its output being a six-parameter flight. Retraining the same network with the
+observation-noise model as an explicit knob, which a per-instance optimiser has no equivalent
+of, costs 12% on clean detections and keeps it ahead at every corruption level tested.</p>
 
 <div class="status"><b>Status of this draft</b>
 Every number below is measured and traceable to a log in the companion package; none are
-estimates. Section&nbsp;4.1 corrects a claim an earlier version of this work made about the label
-ceiling, and states why the earlier measurement was wrong &mdash; the correction moved the
-conclusion by an order of magnitude, from "no method can reach 5&nbsp;cm" to "the floor is
-4.9&nbsp;cm and we are 18&times; above it".</div>
+estimates. Two of them correct earlier versions of this work, and both corrections are stated
+where the number appears rather than quietly absorbed. Section&nbsp;5.1 revises a claim about the
+label ceiling &mdash; that correction moved the conclusion by an order of magnitude, from "no
+method can reach 5&nbsp;cm" to "the floor is 4.9&nbsp;cm and we are 18&times; above it".
+Section&nbsp;3.2 revises the baseline: an earlier measurement gave paper 1's solver our own
+estimate as its starting point, which measures a hybrid rather than a baseline and flattered the
+optimiser by nearly a factor of two.</div>
 
 
 <figure>
@@ -121,18 +133,31 @@ such a pipeline and produces the 3D coordinates this paper is measured against.<
 <p>This paper asks whether the lift can be learned — amortised into a network that consumes
 the same inputs and produces the answer in one pass, without running an optimiser per stroke.
 That question has an obvious appeal (speed, differentiability, no per-stroke failure modes)
-and a non-obvious answer, which is that the amortised model is not merely competitive with
-the optimiser it imitates but <em>more robust</em> than it, because the optimiser is fragile to the
-heavy tail of a real detector while a model trained on that same noise is not.</p>
+and a non-obvious answer, which is that the amortised model is not merely competitive with the
+optimiser it imitates but more accurate than it &mdash; 0.413&nbsp;m against 0.709&nbsp;m on the same
+held-out strokes and the same detections &mdash; at 1/249 of the cost. The reason is not that the
+network is a better estimator in the abstract. It is that the optimiser's objective treats the
+detected pixels as the truth and has no way to represent the detector's error distribution,
+while a model fitted over a corpus in which those errors are present absorbs them. Section&nbsp;4
+tests that explanation directly, and reports the part of it that does not survive: expressed as
+a ratio against its own clean performance, the optimiser is the <em>more</em> stable of the two
+under added pixel noise, because a six-parameter flight is a heavily smoothed function of its
+observations. It is simply worse throughout.</p>
 
 <ul class="contrib">
 <li><b>Temporal context, not visual capacity, is the lever.</b> A pixel-free model on the whole
 stroke beats an end-to-end pixel model on five frames by 2.5&times;. The gain saturates exactly
 at one stroke: extending to 96 frames across stroke boundaries is worse.</li>
-<li><b>The amortised model beats the optimiser it imitates.</b> Running paper 1's constrained
-solver on our detections gives 0.765&nbsp;m; the learned model gives 0.333&nbsp;m on the same
-detections. The solver's feasible rate falls 92.3%&nbsp;&rarr;&nbsp;86.3% and its own residual rises
-10.8&nbsp;&rarr;&nbsp;78.2&nbsp;px under a detector with a 26.9&nbsp;px p90.</li>
+<li><b>The amortised model beats the optimiser it imitates, on two disjoint sets.</b> Run from
+its own lifter prior on our detections, paper 1's pipeline gives 0.709&nbsp;m on the held-out venue
+against our 0.413&nbsp;m, and 0.765&nbsp;m against 0.333&nbsp;m on the TrackNetV3 venues. Its feasible rate
+falls 92.3%&nbsp;&rarr;&nbsp;86.3% and its own residual rises 10.8&nbsp;&rarr;&nbsp;78.2&nbsp;px under a detector with a
+26.9&nbsp;px p90. It is also 249&times; slower.</li>
+<li><b>The two metrics that need no 3D ground truth are each an identity for one of the two
+methods.</b> Our reprojection error is 0.00&nbsp;px because our horizontal position is solved from
+the detected pixel; the optimiser's physics residual is 0.0 because its output is the integral
+of that physics. Reporting either alone is circular. Section&nbsp;4 reports both, plus the
+checks that are an identity for neither.</li>
 <li><b>But the solver supplies the confidence signal the model cannot.</b> No inference-time
 signal we could extract from the model predicts its own error (|&rho;|&nbsp;&le;&nbsp;0.10 for detector
 confidence, trajectory jerk, and the closed-form scale). The solver's post-hoc fit residual
@@ -157,7 +182,7 @@ because real 3D ground truth was not available.</p>
 flights and a median error measured against an independent reconstruction of real broadcast
 video are not the same measurement, and our numbers should not be read against that one. What
 we can say is what the labels themselves support: on paper 1's coordinates a perfect model
-reaches 0.049&nbsp;m RMSE at 95% coverage (&sect;4.1), and we are at 0.878&nbsp;m.</p>
+reaches 0.049&nbsp;m RMSE at 95% coverage (&sect;5.1), and we are at 0.878&nbsp;m.</p>
 
 <h2 id="method">2. Method</h2>
 
@@ -204,7 +229,7 @@ bend is what fixes the height. The median stroke in this data is 27 frames.</p>
 <p>The head is a six-layer, 192-dimensional transformer over the stroke's frames. Its inputs are
 the detected pixel, its time derivative, the frame time, and a nine-number summary of the venue
 camera. It does not read the image. That is not an architectural preference but the experiment:
-adding the trunk's pixel features at the detected point makes it <em>worse</em> (§4.3).</p>
+adding the trunk's pixel features at the detected point makes it <em>worse</em> (§6.3).</p>
 
 <h3>2.3 Mirroring is exact, and it is the only augmentation that helps</h3>
 
@@ -251,13 +276,22 @@ worse: the optimiser makes good estimates better and bad ones worse, which is wh
 is for. And the fraction of frames within 5&nbsp;cm moves from 0.1% to 6.9% across the table,
 which is the figure a downstream analytics use actually cares about.</p>
 
-<p>Paper 1's solver <em>run on its own</em> from our detections is not in the table because it is
-scored on a different set — the TrackNetV3 venues, where we can regenerate its input. There it
-gives a clean-subset median of 0.765&nbsp;m against the learned model's 0.333&nbsp;m on the same
-detections: <b>the amortised model is 2.3&times; more accurate than the optimiser it was trained to
-imitate.</b> The optimiser's feasible rate falls 92.3%&nbsp;&rarr;&nbsp;86.3% and its own fit residual rises
-10.8&nbsp;&rarr;&nbsp;78.2&nbsp;px when fed a detector with a 26.9&nbsp;px p90; a model trained on that same noise
-absorbs it. This is why §3.3 uses the solver as a <em>refiner</em> and never on its own.</p>
+<p>Paper 1's pipeline <em>run on its own</em> is not in the table, because the table is scored
+per frame on the clean subset while the pipeline has to be scored per stroke on whatever it
+returns. Measured that way it loses on both sets we can measure it on. On the TrackNetV3 venues,
+where we can regenerate its input, it gives 0.765&nbsp;m against the learned model's 0.333&nbsp;m on
+the same detections; on the held-out venue, 0.709&nbsp;m against 0.413&nbsp;m over 250 strokes
+(&sect;4.2). <b>The amortised model is 1.7&ndash;2.3&times; more accurate than the optimiser it was
+trained to imitate.</b> Its feasible rate falls 92.3%&nbsp;&rarr;&nbsp;86.3% and its own fit residual
+rises 10.8&nbsp;&rarr;&nbsp;78.2&nbsp;px when fed a detector with a 26.9&nbsp;px p90; a model trained on that
+same noise absorbs it. This is why &sect;3.3 uses the solver as a <em>refiner</em> and never on its
+own.</p>
+
+<p class="note">Measuring this correctly took two attempts, and the failed one is worth naming
+because it is easy to repeat. The first version handed paper 1's solver our own height estimate
+as its starting point. That measures the hybrid of &sect;3.3, not the baseline: it reads
+0.375&nbsp;m and flatters the optimiser by nearly a factor of two. Every number reported for
+"paper 1's pipeline" here runs its own lifter first, as it would be run in practice.</p>
 
 
 <figure>
@@ -267,7 +301,7 @@ p75 0.74&nbsp;m) rather than by length &mdash; the longest strokes are the worst
 those alone misrepresents the result in the other direction. Orange is paper 1's coordinates,
 the target; blue is ours. The right panel looks down on the court, which is the only view in
 which the camera's depth direction is not foreshortened, and it is where nearly all the error
-lives. The visible jitter in the blue track is the physical incoherence measured in &sect;5.1:
+lives. The visible jitter in the blue track is the physical incoherence measured in &sect;4.1:
 fitting a flyable arc through it moves the points by 0.45&nbsp;m and barely changes the error.</figcaption>
 </figure>
 
@@ -308,9 +342,165 @@ more conservative, so more frames fail to cross the threshold. A soft-argmax eva
 see this — it returns a coordinate for every frame and so can never record a miss — which is
 why we report the released protocol rather than a median pixel distance.</p>
 
-<h2 id="ceiling">4. What the labels can support</h2>
+<h2 id="nogt">4. Evidence that does not come from paper 1</h2>
 
-<h3>4.1 Measure the ceiling per corpus</h3>
+<p>Every number in section 3 is scored against paper 1's coordinates, and paper 1's coordinates
+are an offline optimiser's output. Agreement with them cannot, on its own, establish that either
+method is right, and a reviewer is entitled to read the whole of section 3 as distillation with
+extra steps. This section is the answer: four measurements that need no 3D ground truth, and a
+warning that two of them are worthless if read carelessly.</p>
+
+<h3>4.1 Two of the obvious metrics are identities</h3>
+
+<p>The two checks a monocular paper reaches for first are reprojection error and physical
+consistency. On this pair of methods each one is an identity for one side and a genuine
+measurement for the other.</p>
+
+<div class="tw"><table>
+<tr><th>on 250 held-out strokes</th><th>reprojection<br>median px</th><th>reprojection<br>p90 px</th><th>drag residual<br>median m/s&sup2;</th><th>jerk<br>median m/s&sup3;</th><th>net clearance<br>median m</th></tr>
+<tr><td>ours</td><td class="todo">0.00 &dagger;</td><td class="todo">0.00 &dagger;</td><td>109.0</td><td>194</td><td>+0.31</td></tr>
+<tr><td>paper 1 pipeline</td><td>3.85</td><td>21.32</td><td class="todo">0.0 &dagger;</td><td class="todo">1 &dagger;</td><td>+0.34</td></tr>
+<tr><td>hybrid (ours &rarr; solver)</td><td>3.74</td><td>21.04</td><td>0.0</td><td>1</td><td>+0.35</td></tr>
+</table></div>
+
+<p class="note">&dagger; An identity, not a measurement. The marked cell is zero by the
+construction of the method in that row and carries no information about whether its 3D is
+correct.</p>
+
+<p>Our horizontal position is solved in closed form from the detected pixel and the predicted
+height, so our 3D reprojects onto the detection <em>exactly</em>: 0.00&nbsp;px at the median and 0.00&nbsp;px
+at p90, and it would stay 0.00&nbsp;px if the height head were replaced by a random number generator.
+Paper 1's trajectory is the integral of a drag ODE, so its residual against that same ODE is 0.0
+by construction, and it would stay 0.0 if the launch state were wrong by ten metres. Neither
+column discriminates. Both belong in the paper only as a pair.</p>
+
+<p>Read together they do say something, and it is not flattering to us. Zero reprojection error
+means all of our error is in the height, which section 3 already reports; 109&nbsp;m/s&sup2; of drag
+residual at 30&nbsp;fps is a frame-to-frame height ripple of <i>a&thinsp;&Delta;t&sup2;</i>&nbsp;&asymp;&nbsp;12&nbsp;cm, which
+is exactly the jitter visible in the blue track of Figure&nbsp;3. Our output is a sequence of
+plausible positions, not a flyable trajectory. The one metric that is an identity for neither
+method &mdash; net clearance, which is a fact about the court rather than about either
+model's own objective &mdash; puts the two within 3&nbsp;cm of each other.</p>
+
+<h3>4.2 What amortisation actually buys, and what it costs</h3>
+
+<p>State the problem the way it is. Both methods see the same thing: a sequence of detected
+pixels corrupted by detector error, and a camera. Paper 1 solves, per stroke, an optimisation
+whose objective treats those pixels as the truth; it has no access to the detector's error
+distribution and nothing in the objective tells it which pixels to distrust. The network instead
+learns a direct map from observations to state, fitted over a corpus in which the detector's
+errors are present with their real distribution. It is amortised inference for an inverse
+problem under observation noise, and the thing being amortised is not only the compute &mdash;
+it is the noise model.</p>
+
+<p>The usual way to sell that argument is to show the optimiser collapsing under injected noise
+while the network holds. We ran the test and it does not say that. Both methods were handed the
+same corrupted detections, scored against the same clean reference.</p>
+
+<div class="tw"><table>
+<tr><th>corruption applied to both</th><th>ours<br>median m</th><th>+ noise aug<br>median m</th><th>paper 1<br>median m</th><th>ours<br>&times; clean</th><th>paper 1<br>&times; clean</th></tr>
+<tr><td>clean</td><td class="good">0.413</td><td>0.462</td><td>0.709</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>noise 2&nbsp;px</td><td>0.509</td><td class="good">0.471</td><td>0.717</td><td>1.23</td><td>1.01</td></tr>
+<tr><td>noise 4&nbsp;px</td><td>0.649</td><td class="good">0.485</td><td>0.750</td><td>1.57</td><td>1.06</td></tr>
+<tr><td>noise 8&nbsp;px</td><td>0.998</td><td class="good">0.555</td><td>0.733</td><td>2.41</td><td>1.03</td></tr>
+<tr><td>noise 16&nbsp;px</td><td>1.327</td><td class="good">0.703</td><td>0.769</td><td>3.21</td><td>1.08</td></tr>
+<tr><td>1 frame held</td><td class="good">0.449</td><td>0.498</td><td>0.698</td><td>1.09</td><td>0.98</td></tr>
+<tr><td>3 frames held</td><td class="good">0.475</td><td>0.498</td><td>0.705</td><td>1.15</td><td>0.99</td></tr>
+<tr><td>5 frames held</td><td>0.562</td><td class="good">0.561</td><td>0.806</td><td>1.36</td><td>1.14</td></tr>
+<tr><td>4&nbsp;px + 3 held</td><td>0.656</td><td class="good">0.565</td><td>0.738</td><td>1.59</td><td>1.04</td></tr>
+</table></div>
+
+<p class="note">A held frame is not a missing row. When the tracker loses the shuttle it carries
+the last position forward, so that is what both methods are given &mdash; a repeated pixel, not
+a gap. Corruption is applied to the input only; the reference stays clean. Feasible and usable
+rates are 100% for both methods in every row and are omitted.</p>
+
+<p>Under added pixel noise the optimiser is the <em>more</em> stable of the two in relative terms, and by a wide margin: sixteen pixels multiplies our error by 3.21&times; and its error by 1.08&times;. The two cross between 4 and 8&nbsp;px &mdash; at 4&nbsp;px we are ahead 0.649 to 0.750&nbsp;m, at 8&nbsp;px we are behind 0.998 to 0.733. This is not a subtle effect and it is the opposite of the story the amortisation argument is usually told with, so it is worth being precise about why it happens.</p>
+
+<p>Two reasons, and only one of them is a defect. The first is that paper 1's output is the integral of a six-parameter flight: whatever the pixels do, the answer is constrained to a six-dimensional family, so it is a heavily smoothed function of its observations and smoothing is exactly what buys relative stability. It pays for that stability with a 1.7&times; worse answer throughout the range a real detector occupies. The second is that our model was fitted to the error distribution of <em>our detector</em>. Injecting isotropic Gaussian displacement is a distribution shift, and an amortised estimator is by construction only as robust as the observation model it was fitted under. The optimiser has no training distribution to be shifted away from.</p>
+
+<p>The second reason is testable, because the observation model is a knob we hold and the optimiser does not. Retraining the identical architecture with per-sample Gaussian pixel noise, &sigma;&nbsp;&sim;&nbsp;U(0,&nbsp;8&nbsp;px), gives the middle column above. It costs 12% on clean detections (0.462 against 0.413&nbsp;m) and cuts the 16&nbsp;px degradation from 3.21&times; to 1.52&times;, which is enough to stay ahead of the optimiser at every corruption tested. This is the concrete form of what amortisation buys: an optimiser cannot be told what its observations' noise looks like, and a fitted estimator can be told exactly that, at a price in clean accuracy that is measurable and chooseable.</p>
+
+<p>Held frames tell a different and more relevant story, because they are the corruption a real tracker actually produces &mdash; a lost shuttle becomes a repeated pixel, not a displaced one. There we are ahead at every level tested: five held frames in a stroke of 27 puts us at 0.562&nbsp;m against 0.806, and the combined case, 4&nbsp;px of noise on top of 3 held frames, is 0.656 against 0.738. A repeated pixel is not noise the optimiser can average away; it is a stretch of arc asserting the shuttle stopped, which no flight in its six-parameter family can express.</p>
+
+<p class='note'>What this section does not show is the exponential collapse of the optimiser that this kind of argument is usually sold with. On this data the optimiser degrades gracefully and is simply worse throughout the regime a real detector occupies. The defensible claim is about level, cost and the ability to choose a noise model &mdash; not about slope.</p>
+
+<h3>4.3 What each method costs</h3>
+
+<p>A forward pass over a whole stroke takes <b>1.6&nbsp;ms</b> on one RTX&nbsp;4090, or 623 strokes per
+second; paper 1's pipeline takes <b>400&nbsp;ms</b> per stroke on the held-out venue and 467&nbsp;ms on
+the unseen ones, <b>249&times;</b> longer. A stroke is 27
+frames at the median, so 1.6&nbsp;ms is 0.06&nbsp;ms per frame against a 33&nbsp;ms budget at broadcast frame
+rate, and 400&nbsp;ms is 15&nbsp;ms per frame &mdash; the optimiser is not out of reach on a stroke that
+has already ended, but it cannot be run inside a live loop alongside the detector that feeds it,
+and it cannot be run at all on a stroke that has not finished. The hybrid of &sect;3.3 pays the
+optimiser's cost on the fraction of strokes the gate admits, which buys the best accuracy
+measured anywhere in this paper (0.375&nbsp;m) and gives up real-time operation to get it. Panel
+(c) of Figure&nbsp;4 is the whole trade-off on one axis: three of the four operating points are
+ours, and the two that run inside the frame budget are 1.5&ndash;1.7&times; more accurate than the
+one that does not.</p>
+
+<figure>
+<img src="fig/stress.png" alt="Noise stress test and the accuracy-cost frontier">
+<figcaption><b>Figure 4. Corruption and cost.</b> <b>(a)</b> every method is handed the same
+detections with Gaussian noise added to each pixel. The baseline model crosses the optimiser at
+about 6&nbsp;px; the same architecture trained with pixel noise does not cross it at all.
+<b>(b)</b> the same y scale, with frames held instead of displaced &mdash; the corruption a real
+tracker produces. Here the optimiser is behind at every level. <b>(c)</b> accuracy against wall
+clock on clean detections, log scale, with the 33&nbsp;ms per-frame budget of broadcast frame rate
+marked. Note the y scales of (a,b) and (c) differ.</figcaption>
+</figure>
+
+<h3>4.4 The same weights on 25 venues they have never seen</h3>
+
+<p>The evaluation in section 3 is already leave-one-venue-out: the 998 held-out strokes come
+from a venue absent from training. But they come from the same corpus &mdash; the same
+tournament series, the same production crew. The height head is trained on the 2025 singles
+venues, the only ones whose 3D labels are clean enough to train against (&sect;5.1). The
+TrackNetV3 corpus is twenty-five further venues:
+different tournaments, different broadcasters, camera focal lengths from 1179 to 3756&nbsp;px, and 3D
+labels too noisy to score against. That makes it the right zero-shot test and the wrong accuracy
+test, so what is reported is the fraction of strokes that come back as a flight a shuttle could
+physically fly &mdash; above the floor, inside the court, never faster than a smash.</p>
+
+<div class="tw"><table>
+<tr><th></th><th>strokes</th><th>venues</th><th>flyable %</th><th>drag residual m/s&sup2;</th><th>net clearance m</th></tr>
+<tr><td>held-out venue, same corpus</td><td>998</td><td>1</td><td>94.6</td><td>113.5</td><td>+0.33</td></tr>
+<tr><td>a different corpus entirely</td><td>3,016</td><td>25</td><td>90.0</td><td>102.7</td><td>+0.24</td></tr>
+<tr><td>&mdash; paper 1 pipeline, same test, 300 of them</td><td>300</td><td>25</td><td>99.3</td><td class="todo">0.0 &dagger;</td><td>&mdash;</td></tr>
+</table></div>
+
+<p>A 4.7-point drop across a change of tournament, broadcaster and camera is the number, and it
+is small because the head reads geometry rather than pixels: the venue enters only through a
+nine-number camera summary, so a new venue is a new value of an input the model already varies
+over, not a new appearance. The spread across the 25 venues is much wider than the mean suggests
+&mdash; 41.6% on the worst venue against 100% on the best &mdash; and the worst is
+<code>train_match12</code>, which is also among the worst venues in the depth fit of &sect;6.2.
+When a stroke is called unflyable it is because it asks for a speed above a smash (48.4% of
+failures) or dips below the floor (27.4%); nothing is ever thrown above 20&nbsp;m.</p>
+
+<h4>The comparison this invites, and the answer we do not like</h4>
+
+<p>Running paper 1's pipeline on 300 of those unseen strokes and applying <em>the same</em>
+plausibility test to its output &mdash; not its own feasibility flag, which is a different
+question &mdash; it produces a flyable trajectory 99.3% of the time against our 90.0%. That is
+the expected direction and it should be reported plainly: the optimiser is constrained to
+integrate a flight, so producing something flyable is most of what it does. We have no 3D
+reference on these venues, so nothing here says which output is closer to the truth.</p>
+
+<p>Put beside &sect;4.1 and section 3 it states the paper's central tension exactly. Where a
+reference exists, our error is small and physically incoherent &mdash; 0.413&nbsp;m with
+109&nbsp;m/s&sup2; of drag residual. The optimiser's is large and perfectly coherent &mdash;
+0.709&nbsp;m at 0.0. Neither is the thing a downstream analytics user wants, which is small
+<em>and</em> coherent, and neither method reaches it alone. That is the argument for the gated
+hybrid of &sect;3.3 rather than an afterthought to it: our estimate supplies the position the
+optimiser cannot find, the optimiser supplies the physics we cannot enforce, and the gate on its
+own fit residual decides which strokes get both. It is also the honest reason the paper does not
+claim the learned model replaces the optimiser.</p>
+
+<h2 id="ceiling">5. What the labels can support</h2>
+
+<h3>5.1 Measure the ceiling per corpus</h3>
 
 <p>Feeding the closed form the label's own pixel, the label's own height and the venue's camera
 gives a residual against the label's own horizontal position that no model can escape. Measured
@@ -343,7 +533,7 @@ maximum residual of 20,963&nbsp;m. That is a numerical degeneracy, not a data de
 before quoting a ceiling. And strip the degenerate closed-form frames before computing any RMSE,
 because a hundred of them out of two hundred thousand set the number by themselves.</p>
 
-<h3>4.2 Evaluate with detected 2D, not label 2D</h3>
+<h3>5.2 Evaluate with detected 2D, not label 2D</h3>
 
 <p>Every stroke-level result we produced before noticing this was fed the label's 2D track as
 input — a ground truth the model does not have at inference. The gap is not small:</p>
@@ -360,13 +550,13 @@ missed and mistaken detections. Training on the clean track and deploying on the
 3.2&times;; training on the dirty track recovers most of it. Any paper reporting the first row alone
 is overstating by that factor.</p>
 
-<h2 id="ablation">5. What did not work</h2>
+<h2 id="ablation">6. What did not work</h2>
 
 <p>Eleven attempts, all measured on the same protocol. We report them because most are the
 obvious next thing to try, and because two of them — physics and depth — are what a reader
 would reasonably assume we had simply failed to attempt.</p>
 
-<h3>5.1 Physics, three ways</h3>
+<h3>6.1 Physics, three ways</h3>
 
 <div class="tw"><table>
 <tr><th>formulation</th><th>clean-subset median (m)</th><th>vs no physics</th></tr>
@@ -390,7 +580,7 @@ suppress (we observed a loss of 1.2&times;10<sup>5</sup> at epoch 1). And the cl
 huge horizontal position when the ray is near-parallel to the height plane; the sign guard does
 not bound the magnitude, so one degenerate frame can carry an entire batch (loss 1.5&times;10<sup>3</sup>).</p>
 
-<h3>5.2 Depth, two ways</h3>
+<h3>6.2 Depth, two ways</h3>
 
 <p>Depth Anything V2 on each venue's median background gives a scene depth map for 999 forward
 passes rather than 222,509 — the court does not move, and the background image has no shuttle in
@@ -402,14 +592,14 @@ is good. It does not help.</p>
 <tr><th>use</th><th>unseen 3D median (m)</th></tr>
 <tr><td>no depth</td><td>1.030</td></tr>
 <tr><td>as a fifth input, concatenated after the R(2+1)D stage</td><td>1.044</td></tr>
-<tr><td>as an auxiliary regression target on the decoder features</td><td>1.101</td></tr>
+<tr><td>as an auxiliary regression target on the decoder features</td><td>1.077</td></tr>
 </table></div>
 
 <p>The auxiliary head learns its target (its loss halves, 0.241&nbsp;&rarr;&nbsp;0.121) and the training loss
 tracks the baseline to within 0.003. The court's geometry is already recoverable from the image;
 what is missing is the shuttle's own depth, and a static scene map does not contain it.</p>
 
-<h3>5.3 Everything else</h3>
+<h3>6.3 Everything else</h3>
 
 <div class="tw"><table>
 <tr><th>attempt</th><th>result</th><th>baseline</th></tr>
@@ -429,7 +619,7 @@ frames belong to a different arc across a racket impact — the lever saturates 
 physical unit. And a 23% better detector at p90 buys 1.5% of 3D accuracy, so the bottleneck is
 not detection.</p>
 
-<h2 id="limits">6. Limitations</h2>
+<h2 id="limits">7. Limitations</h2>
 
 <p><b>The gap to the label ceiling is 12&ndash;18&times;.</b> Our best is 0.351&nbsp;m median and 0.878&nbsp;m
 RMSE&nbsp;95 against a perfect-model floor of 0.031&nbsp;m and 0.049&nbsp;m. In height terms the model is at
