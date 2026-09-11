@@ -1,7 +1,10 @@
 # TrackNet3D
 
-Metric 3D shuttlecock trajectories from monocular broadcast video, without camera
-parameters at inference for the trajectory head.
+A single forward pass that lifts a whole stroke of 2D shuttlecock detections to metric
+3D, in place of a per-stroke constrained optimiser. The court calibration is an *input*,
+not something the model estimates — the title says "lifting", not "calibration-free",
+because the height head reads a nine-number camera summary and the horizontal solve reads
+the homography.
 
 **The paper is [`index.html`](index.html)** — open it in a browser, or read it at the
 GitHub Pages URL once Pages is enabled for this repository.
