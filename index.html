@@ -194,6 +194,39 @@ video are not the same measurement, and our numbers should not be read against t
 we can say is what the labels themselves support: on paper 1's coordinates a perfect model
 reaches 0.049&nbsp;m RMSE at 95% coverage (&sect;5.1), and we are at 0.878&nbsp;m.</p>
 
+
+<h4>MonoTrack, run on our strokes</h4>
+
+<p>Discussing a baseline without running it is not a comparison, so we ran it.
+<code>monotrack_baseline.py</code> is a reimplementation of MonoTrack's per-shot solver from the
+paper and its released source, given exactly what our model gets: our detector's 2D track and the
+venue camera, on 150 held-out strokes.</p>
+
+<div class="tw"><table>
+<tr><th>method</th><th>3D median (m)</th><th>p90 (m)</th><th>net violation</th><th>ms / stroke</th></tr>
+<tr><td>ours</td><td class="good">0.443</td><td>1.472</td><td>14.5%</td><td>2.8</td></tr>
+<tr><td>paper 1 pipeline (&sect;4.2)</td><td>0.709</td><td>&mdash;</td><td>0.0%</td><td>400</td></tr>
+<tr><td>MonoTrack, court half inferred</td><td>2.648</td><td>15.94</td><td>54.8%</td><td>5840</td></tr>
+<tr><td>MonoTrack, given the true court half</td><td>2.480</td><td>15.50</td><td>52.8%</td><td>5840</td></tr>
+</table></div>
+
+<p><b>This is not a reproduction of MonoTrack's published system and should not be read as one.</b>
+Their pipeline supplies its own hit segmentation, its own DLT calibration and its own tracker;
+what is being run here is their solver on our inputs and our stroke segmentation. Two specific
+handicaps are worth naming. Their optimiser constrains the launch to one court half and the
+velocity toward the other, which their pipeline knows because it detects who hit the shuttle; our
+track-only interface has to infer it and gets it wrong on 33% of strokes, producing time-reversed
+fits that still reproject at 5&nbsp;px &mdash; a clean demonstration of &sect;4.1's point that
+reprojection barely constrains monocular depth. Choosing the half by reprojection therefore does
+not fix it, and the last row simply tells the solver the true half, an advantage we grant it.</p>
+
+<p>The comparison that does mean something is between the two optimisers. Paper 1's pipeline is,
+structurally, this solver plus a learned prior to initialise it, and it reaches 0.709&nbsp;m where
+MonoTrack's heuristic initialisation reaches 2.480&nbsp;m. Nothing about the physics differs. On
+this data a per-stroke optimiser's accuracy is dominated by what initialises it, which is the
+amortisation argument of &sect;4.2 arriving from a third direction: the learned component is
+carrying the estimate, and the optimiser is refining whatever it is handed.</p>
+
 <h2 id="method">2. Method</h2>
 
 <h3>2.1 Two stages that are both learned</h3>
@@ -334,6 +367,41 @@ refinement's gain without its cost:</p>
 <tr><td>rms &le; 20 px</td><td>80.0%</td><td class="good">0.351</td><td class="good">0.878</td><td class="good">6.9%</td></tr>
 <tr><td>accept all</td><td>100%</td><td>0.386</td><td class="bad">1.107</td><td>6.7%</td></tr>
 </table></div>
+
+
+<h4>A learned confidence signal, and what it replaces</h4>
+
+<p>"The model cannot tell when it is right" is a claim about the signals we could read off a
+model that was never asked to produce one, which is a weaker claim than it sounds. The missing
+control is a head <em>trained</em> to predict the error. We added two: a heteroscedastic
+log-&sigma; on the height, and a direct regression on the per-frame 3D error. Both are trained
+against detached targets, and in the row marked <i>read-out</i> the trunk is detached as well, so
+the uncertainty outputs cannot cost the height head any capacity.</p>
+
+<div class="tw"><table>
+<tr><th>confidence signal</th><th>&rho; with the 3D error</th><th>3D median (m)</th><th>keep the best 80%</th></tr>
+<tr><td>detector confidence</td><td>&minus;0.018</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>trajectory jerk</td><td>+0.099</td><td>&mdash;</td><td>worse than not selecting</td></tr>
+<tr><td>closed-form scale</td><td>+0.025</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>learned log-&sigma;, joint</td><td>+0.393</td><td>0.374</td><td>&mdash;</td></tr>
+<tr><td>learned error head, joint</td><td class="good">+0.430</td><td>0.374</td><td>0.340 vs 0.403</td></tr>
+<tr><td>learned error head, read-out</td><td class="good">+0.406</td><td>0.350</td><td>0.335 vs 0.388</td></tr>
+<tr><td><i>no uncertainty head</i></td><td><i>&mdash;</i></td><td><i>0.337</i></td><td><i>&mdash;</i></td></tr>
+</table></div>
+
+<p>Trained for it, the model can tell &mdash; four times better than any signal already present,
+and enough to make selective prediction work where it previously backfired: discarding the least
+confident 20% of frames improves the median by 14%, against the jerk-based version making it
+worse. Attached to the trunk this costs 11% of the main metric; detached it costs 4%, which is
+about two seed standard deviations (&sect;3.5).</p>
+
+<p>This matters beyond confidence reporting, because the gate above is the one place the paper
+still needs the optimiser at inference. A learned signal at &rho;&nbsp;=&nbsp;0.41 is not yet the
+solver's <code>rms_px</code>, which is a post-hoc measurement of a fit rather than a prediction,
+and we have not shown the two are interchangeable for gating. But it moves the question from
+"no learned signal works" to "how good does a learned signal have to be", and it is the obvious
+route to dropping the 400&nbsp;ms refinement pass entirely. We flag it as the most promising
+open direction rather than a solved one.</p>
 
 <h3>3.4 What the extra output costs the detector</h3>
 
@@ -655,6 +723,42 @@ hybrid of &sect;3.3 rather than an afterthought to it: our estimate supplies the
 optimiser cannot find, the optimiser supplies the physics we cannot enforce, and the gate on its
 own fit residual decides which strokes get both. It is also the honest reason the paper does not
 claim the learned model replaces the optimiser.</p>
+
+
+<h3>4.5 Is any of this specific to badminton?</h3>
+
+<p>The paper's central claim &mdash; five frames cannot observe a ball's height and a whole arc
+can &mdash; is a statement about the conditioning of an inverse problem, not about our network,
+so it can be tested for other sports without a frame of their video. The Cram&eacute;r&ndash;Rao
+bound on 3D position follows from the Fisher information of the launch state and the projection
+Jacobian; it is the best <em>any</em> estimator could do. A sport enters through four numbers:
+terminal velocity, court size, camera placement, and launch speeds.</p>
+
+<div class="tw"><table>
+<tr><th>sport</th><th>v<sub>T</sub> (m/s)</th><th>frames in the arc</th><th>CRLB, 5 frames (m)</th><th>CRLB, whole arc (m)</th><th>ratio</th></tr>
+<tr><td>badminton</td><td>6.8</td><td>52</td><td>61.2</td><td>0.061</td><td>1110&times;</td></tr>
+<tr><td>table tennis</td><td>9.0</td><td>17</td><td>2.8</td><td>0.091</td><td>31&times;</td></tr>
+<tr><td>tennis</td><td>22.0</td><td>58</td><td>72.2</td><td>0.150</td><td>461&times;</td></tr>
+<tr><td>volleyball</td><td>25.0</td><td>52</td><td>37.5</td><td>0.127</td><td>330&times;</td></tr>
+<tr><td>baseball</td><td>42.0</td><td>52</td><td>278.4</td><td>0.660</td><td>459&times;</td></tr>
+</table></div>
+
+<p>A five-frame window is worse conditioned than the whole arc in every sport simulated, by one
+to three orders of magnitude, and <b>the ratio does not track terminal velocity</b> (Spearman
+-0.30 across the five sports). So the effect is not badminton's extreme drag: it is that five
+frames at 30&nbsp;fps span too little of any ballistic arc to separate depth from height, and
+drag only changes how much of the arc a given number of frames buys you. Table tennis shows the
+smallest ratio because its arcs are the shortest &mdash; 17 frames against roughly 52 elsewhere
+&mdash; which is the same mechanism seen from the other side.</p>
+
+<p class="note">This is a simulation, and the only sport whose four numbers were measured rather
+than taken from a reference is badminton. It says the <em>conditioning</em> argument generalises;
+it does not say a model trained here would work on tennis video, which we have not tested and
+have no data for. The badminton whole-arc bound of 0.061&nbsp;m is consistent with the 0.160&nbsp;m
+we measured for real long shots in earlier work, which is the sanity check that the machinery is
+producing sensible magnitudes. The five-frame column should be read as "the bound diverges",
+not as a length: with six launch parameters and ten observations the Fisher matrix is nearly
+singular, which is precisely the claim.</p>
 
 <h2 id="ceiling">5. What the labels can support</h2>
 
