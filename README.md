@@ -33,7 +33,10 @@ repository re-runs them; this repository is the write-up.
 | §3.2 | main table | `exp51_train_e2e_geom.py --eval`, `exp64_stroke_pixels.py` |
 | §3.3 | solver gate | `exp68_hybrid_solve.py` → `out/exp68_hybrid.csv` |
 | §3.4 | detector cost, TrackNetV5 protocol | `exp57_tnv5_metric.py` → `out/exp57_tnv5_metric.csv` |
+| §3.5 | temporal trunk, capacity matched, 3 seeds | `exp64 --arch {mlp,tcn,gru,transformer} --seed N`, `exp78_summary.py --set arch` |
+| §3.6 | leave-one-venue-out, 8 folds | `exp64 --hold-venue V`, `exp78_summary.py --set lovo` |
 | §4.1 | reprojection and physics, and which of them is an identity | `exp70_nogt_suite.py` → `out/exp70_ours.csv`, `_solver.csv` |
+| §4.1 | net / floor / landing bounds, and the net decomposition | `exp74_bounds.py` → `out/exp74_bounds.csv` |
 | §4.2 | noise and held-frame stress sweep | `exp70_nogt_suite.py` → `out/exp70_stress.csv` |
 | §4.2 | the same net trained with a noise model | `exp64 --noise-aug 8`, then `exp70 --ckpt out/p1corpus_naug.pt --no-solver` → `out/exp70n_stress.csv` |
 | §4.3 | latency, throughput, frontier | `out/exp70_cost.csv` |

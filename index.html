@@ -93,6 +93,11 @@ model, trunk pixel features, higher capacity, a stronger detector, and running p
 constrained solver on our detections. A hybrid does work — our estimate as that solver's
 starting point, accepted only where the solver's own fit residual is small — and improves
 the median by 16% and the fraction of frames within 5&nbsp;cm from 3.6% to 6.9%.
+Held out one venue at a time across all eight, the median is 0.383&nbsp;m with a 1.8&times;
+spread between the easiest and hardest venue, so the single-venue figure the main table reports
+is about 11% optimistic. Swapping the transformer for a GRU or a dilated TCN changes nothing
+measurable, while removing temporal mixing altogether costs 2.2&times;: the lever is the 27
+frames, not what reads them.
 Because the only 3D reference this data has is that solver's own output, we separately report
 what can be shown without one, and say which of those checks are circular: reprojection error is
 an identity for our method and the physics residual is an identity for the solver, so neither
@@ -101,7 +106,11 @@ discriminates alone. Under injected pixel noise the optimiser turns out to be th
 consequence of its output being a six-parameter flight. Retraining the same network with the
 observation-noise model as an explicit knob, which a per-instance optimiser has no equivalent
 of, is free on clean detections and keeps the learned model ahead of the optimiser at every
-corruption level tested.</p>
+corruption level tested. The one metric here with fully external ground truth &mdash; where a
+human annotator marked the shuttle landing &mdash; puts us at 0.55&nbsp;m against the optimiser's
+1.18&nbsp;m, with paper 1's own labels at 0.48&nbsp;m; we are at the floor that measurement can
+resolve. Against that, we put the shuttle under the net on 10.1% of strokes the rally proves
+went over, where the optimiser never does.</p>
 
 <div class="status"><b>Status of this draft</b>
 Every number below is measured and traceable to a log in the companion package; none are
@@ -343,6 +352,80 @@ more conservative, so more frames fail to cross the threshold. A soft-argmax eva
 see this — it returns a coordinate for every frame and so can never record a miss — which is
 why we report the released protocol rather than a median pixel distance.</p>
 
+
+<h3>3.5 The trunk is not the contribution</h3>
+
+<p>A 6-layer 192-d transformer invites the question of whether the result is the attention or
+the context, and the paper's claim rests on the answer being the context. Four temporal trunks,
+matched to 2.80&ndash;2.85&nbsp;M parameters, with identical inputs, loss, augmentation and
+250-epoch schedule; only the trunk changes. The MLP is the control: it has no temporal mixing at
+all, so each frame is lifted on its own and the whole-stroke context is removed while everything
+else is held fixed. Intervals are a percentile bootstrap resampling <em>strokes</em>, not frames
+&mdash; frames within a stroke are nowhere near independent and a per-frame bootstrap would
+report intervals several times too narrow.</p>
+
+<div class="tw"><table>
+<tr><th>temporal trunk</th><th>params</th><th>context</th><th>3D median (m)</th><th>95% CI</th></tr>
+<tr><td>MLP (no temporal mixing)</td><td>2.81 M</td><td>none</td><td>0.683</td><td>[0.632, 0.737]</td></tr>
+<tr><td>TCN</td><td>2.85 M</td><td>whole stroke</td><td>0.350</td><td>[0.325, 0.379]</td></tr>
+<tr><td>transformer</td><td>2.80 M</td><td>whole stroke</td><td>0.327</td><td>[0.302, 0.354]</td></tr>
+<tr><td>transformer, seed 1</td><td>2.80 M</td><td>whole stroke</td><td>0.329</td><td>[0.305, 0.361]</td></tr>
+<tr><td>transformer, seed 2</td><td>2.80 M</td><td>whole stroke</td><td>0.314</td><td>[0.290, 0.342]</td></tr>
+<tr><td>GRU</td><td>2.81 M</td><td>whole stroke</td><td>0.328</td><td>[0.305, 0.352]</td></tr>
+<tr><td>GRU, seed 1</td><td>2.81 M</td><td>whole stroke</td><td>0.325</td><td>[0.301, 0.349]</td></tr>
+<tr><td>GRU, seed 2</td><td>2.81 M</td><td>whole stroke</td><td>0.298</td><td>[0.275, 0.323]</td></tr>
+</table></div>
+
+<p>Removing temporal mixing costs a factor of 2.2. Choosing among the three sequence models
+costs nothing that this experiment can resolve: the transformer averages 0.323&nbsp;m over three
+seeds and the GRU 0.317&nbsp;m, a gap of 0.006&nbsp;m against a pooled seed-to-seed standard deviation
+of 0.013. <b>We therefore make no claim that the transformer is the right architecture</b>; it is
+the one the rest of the paper happens to use, and a GRU or a dilated TCN would do as well. The
+lever is the 27 frames, not what reads them.</p>
+
+<p class="note">These are our own trunks swapped inside one pipeline, not published models run
+end to end. The TCN row is the architecture family VideoPose3D uses for 2D-to-3D lifting and the
+transformer row is MotionBERT's; treating them as stand-ins for those systems is reasonable for
+the question asked here &mdash; which trunk &mdash; and not a substitute for benchmarking against
+the published implementations, which we have not done. The whole table is trained without the
+landing constraint of &sect;3.2, so it is internally consistent but sits slightly above the main
+table.</p>
+
+<h3>3.6 One held-out venue is not a result</h3>
+
+<p>Every number in &sect;3.2 comes from a single held-out venue. That is a leave-one-venue-out
+split with one fold, and one fold cannot say whether the venue was easy. Retraining eight times,
+holding out each 2025 singles venue in turn:</p>
+
+<div class="tw"><table>
+<tr><th>held-out venue</th><th>clean frames</th><th>3D median (m)</th><th>95% CI</th></tr>
+<tr><td>Anna Siess RYBERG LIAO Jui Chi ESTONIAN INTE…</td><td>10759</td><td>0.397</td><td>[0.365, 0.431]</td></tr>
+<tr><td>Brian YANG LIAO Jhuo Fu YONEX US OPEN 2025 S…</td><td>9916</td><td>0.542</td><td>[0.488, 0.596]</td></tr>
+<tr><td>CHOU Tien Chen WANG Po Wei THAILAND MASTERS …</td><td>16249</td><td>0.345</td><td>[0.318, 0.372]</td></tr>
+<tr><td>JEON Hyeok Jin WANG Po Wei THAILAND MASTERS …</td><td>16440</td><td>0.368</td><td>[0.342, 0.397]</td></tr>
+<tr><td>LIAO Jhuo Fu Jia Heng Jason TEH CANADA OPEN …</td><td>15030</td><td>0.312</td><td>[0.289, 0.337]</td></tr>
+<tr><td>LIN Chun Yi LIAO Jhuo Fu TAIPEI OPEN 2024 R3…</td><td>11024</td><td>0.297</td><td>[0.268, 0.328]</td></tr>
+<tr><td>TING Yen Chen Cheng Han TSAI FIRST NATIONAL …</td><td>9528</td><td>0.424</td><td>[0.389, 0.468]</td></tr>
+<tr><td>Thuy Linh NGUYEN WANG Yu Si VIETNAM INTERNAT…</td><td>6143</td><td>0.418</td><td>[0.372, 0.466]</td></tr>
+<tr><td><b>across folds</b></td><td>95089</td><td><b>0.383</b></td><td>0.297 &ndash; 0.542</td></tr>
+</table></div>
+
+<p>The spread is <b>1.8&times;</b> across venues, and it dwarfs every architectural difference in
+&sect;3.5 and most of the ablations in section 6. The venue &sect;3.2 reports on lands at
+0.345&nbsp;m against a cross-venue median of 0.383&nbsp;m, so <b>the main table is roughly 11%
+optimistic</b> as an estimate of what this model does at a venue drawn at random. We have left
+&sect;3.2 as it is, because it is the split every other experiment in the paper is measured on
+and changing it would make the ablations incomparable, but the number to quote for
+generalisation is the cross-venue median, and the honest error bar on it is the fold range, not
+the bootstrap interval of any single fold.</p>
+
+<p>The obvious explanation &mdash; that a venue is hard when its camera is unlike the others
+&mdash; is only half supported. Ranking the eight venues by how far their nine-number camera
+summary sits from the median camera gives a Spearman correlation with fold error of 0.62, but
+with eight folds that is p&nbsp;=&nbsp;0.10, and the hardest venue is not the most unusual one
+(it ranks third). The direction is what &sect;4.4 would predict and the sample is too small to
+call it. We report it as a hypothesis, not a finding.</p>
+
 <h2 id="nogt">4. Evidence that does not come from paper 1</h2>
 
 <p>Every number in section 3 is scored against paper 1's coordinates, and paper 1's coordinates
@@ -383,6 +466,76 @@ plausible positions, not a flyable trajectory. The one metric that is an identit
 method &mdash; net clearance, which is a fact about the court rather than about either
 model's own objective &mdash; puts the two within 3&nbsp;cm of each other.</p>
 
+
+<h4>Three checks that are an identity for neither</h4>
+
+<p>Those two columns cannot decide anything, so here are three that can. All of them are
+external to both methods: two come from the rally structure and one from a human annotator.</p>
+
+<ul class="contrib">
+<li><b>Net crossing.</b> A stroke with a <em>successor</em> in the same rally provably went over
+the net &mdash; the rally continued. A reconstruction that sends it under the tape is wrong, and
+the annotation says so without any 3D reference. 911 of the held-out strokes qualify.</li>
+<li><b>Floor.</b> <i>z</i>&nbsp;&lt;&nbsp;0 is impossible.</li>
+<li><b>Landing position.</b> For the last stroke of a rally the dataset carries a human
+annotation of where the shuttle landed, in image pixels. Through the court homography it is a
+position in metres that neither method has ever seen &mdash; it comes from an annotator, not
+from paper 1's solver. Both trajectories are extrapolated to <i>z</i>&nbsp;=&nbsp;0 with the same
+drag model and compared against it. 87 strokes qualify.</li>
+</ul>
+
+<div class="tw"><table>
+<tr><th></th><th>net violation</th><th>below floor</th><th>penetration m</th><th>landing error m</th><th>landing &lt;1 m</th><th>|z| at touch-down m</th></tr>
+<tr><td>ours</td><td>10.1%</td><td>5.0%</td><td>0.703</td><td>0.55</td><td>67%</td><td>0.016 &dagger;</td></tr>
+<tr><td>ours + noise aug</td><td>11.8%</td><td>4.6%</td><td>0.468</td><td>0.48</td><td>64%</td><td>0.009 &dagger;</td></tr>
+<tr><td>ours + net constraint</td><td>9.4%</td><td>0.0%</td><td>0.000</td><td>0.48</td><td>63%</td><td>0.008 &dagger;</td></tr>
+<tr><td>paper 1 pipeline</td><td>0.0%</td><td>0.2%</td><td>4.213</td><td>1.18</td><td>43%</td><td>0.014</td></tr>
+<tr><td><i>paper 1's labels (reference)</i></td><td>0.1%</td><td>3.0%</td><td>0.084</td><td>0.48</td><td>62%</td><td>0.027</td></tr>
+</table></div>
+
+<p class="note">&dagger; Not independent for these rows. The landing constraint of &sect;3.2
+trains our models on <i>z</i>&nbsp;=&nbsp;0 at a rally's last frame, so their touch-down height is
+a fitted objective, not a test &mdash; the same circularity this section is about, and it is
+flagged rather than claimed. The landing <em>position</em> is not affected: the constraint says
+the shuttle is on the floor, which is known in advance, and says nothing about where. n&nbsp;=&nbsp;61
+for that column, which counts rally-final strokes whose track actually reaches the floor.</p>
+
+<p>The landing row is the one that matters, because it is the only fully external metre-scale
+ground truth in this paper and it is the quantity badminton analytics actually consumes. We reach
+0.55&nbsp;m against the annotation, or 0.48&nbsp;m with either extra constraint &mdash; and paper
+1's own labels reach 0.48&nbsp;m. <b>We are at the floor this metric can measure</b>, and the live
+optimiser is at 1.18&nbsp;m, 2.4&times; worse.</p>
+
+<p>The other two rows go the other way and are the honest cost of section 3's accuracy. We put
+the shuttle under the net on 10.1% of strokes where the rally proves it went over; the optimiser
+never does and the labels do it 0.1% of the time, so that is our error and not a quirk of the
+test. Adding a net-clearance term to the loss &mdash; the same free supervision as the landing
+constraint, applied to the 5,532 training strokes the rally says cleared the net &mdash; barely
+moved it, 10.1%&nbsp;&rarr;&nbsp;9.4%. It did remove floor penetration entirely,
+5.0%&nbsp;&rarr;&nbsp;0.0%, which is not what it was for.</p>
+
+<p>Why the constraint fails is worth a measurement rather than a guess. Substituting one
+component at a time from the labels, on the 827 held-out strokes that both have a successor and
+cross the net plane:</p>
+
+<div class="tw"><table>
+<tr><th>trajectory</th><th>net violation</th><th>median clearance m</th></tr>
+<tr><td>ours</td><td>10.2%</td><td>0.33</td></tr>
+<tr><td>label horizontal + our height</td><td>9.0%</td><td>0.32</td></tr>
+<tr><td>our horizontal + label height</td><td>9.6%</td><td>0.31</td></tr>
+<tr><td><i>labels</i></td><td><i>0.1%</i></td><td><i>0.33</i></td></tr>
+</table></div>
+
+<p>Neither substitution helps. Correcting the height alone leaves 9.0% and correcting the
+horizontal position alone leaves 9.6%, against 10.2% for correcting neither and 0.1% for
+correcting both. <b>Each component is on its own enough to put the shuttle under the net</b>,
+because the clearance being tested is only 0.33&nbsp;m at the median while our per-axis error is
+about the same size. A term that pushes the height up therefore cannot fix this, and the 9.4%
+above is the evidence. It also means the violation rate is a joint property of the estimate, not
+an attribute of the height head &mdash; which matches the observation in the constrained-sampling
+literature that a net constrains the joint distribution of a flight and barely narrows any
+marginal.</p>
+
 <h3>4.2 What amortisation actually buys, and what it costs</h3>
 
 <p>State the problem the way it is. Both methods see the same thing: a sequence of detected
@@ -421,6 +574,8 @@ rates are 100% for both methods in every row and are omitted.</p>
 <p>Two reasons, and only one of them is a defect. The first is that paper 1's output is the integral of a six-parameter flight: whatever the pixels do, the answer is constrained to a six-dimensional family, so it is a heavily smoothed function of its observations and smoothing is exactly what buys relative stability. It pays for that stability with a 1.7&times; worse answer throughout the range a real detector occupies. The second is that our model was fitted to the error distribution of <em>our detector</em>. Injecting isotropic Gaussian displacement is a distribution shift, and an amortised estimator is by construction only as robust as the observation model it was fitted under. The optimiser has no training distribution to be shifted away from.</p>
 
 <p>The second reason is testable, because the observation model is a knob we hold and the optimiser does not. Retraining the identical architecture with per-sample Gaussian pixel noise, &sigma;&nbsp;&sim;&nbsp;U(0,&nbsp;8&nbsp;px), gives the third column. It cuts the 16&nbsp;px degradation from 3.21&times; to 1.64&times; and costs <b>nothing</b> on clean detections &mdash; 0.409 against 0.413&nbsp;m, a difference of 1%. It is at least as good as the unaugmented model in every row of the table. It also never crosses the optimiser: unlike the unaugmented model it is ahead at every corruption tested, including 16&nbsp;px. This is the concrete form of what amortisation buys: an optimiser cannot be told what its observations' noise looks like, and a fitted estimator can be told exactly that.</p>
+
+<p class="note">An earlier version of this table reported a 12% clean-accuracy cost for noise augmentation. That was an artefact of our own experiment: the augmented model had been trained without the landing constraint of &sect;3.2 that the baseline carries, so the comparison changed two things at once. Retrained with the constraint restored, the cost is zero. The confound was found by noticing that the two models' touch-down heights differed by 10&times; &mdash; a fingerprint of the constraint, not of the noise.</p>
 
 <p class="note">An earlier version of this table reported a 12% clean-accuracy cost for noise augmentation. That was an artefact of our own experiment: the augmented model had been trained without the landing constraint of &sect;3.2 that the baseline carries, so the comparison changed two things at once. Retrained with the constraint restored, the cost is zero. The confound was found by noticing that the two models' touch-down heights differed by 10&times; &mdash; a fingerprint of the constraint, not of the noise.</p>
 
