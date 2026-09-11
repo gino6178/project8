@@ -227,21 +227,25 @@ lead(yb - 0.030 - PH2 / 2, c_head)
 
 # ============================== d. who can gate the answer  ->  refinement
 head(yc - 0.024, 'd.  Who knows when the answer is wrong')
-PH3 = 0.108
+PH3 = 0.128
 ax = panel(yc - 0.030, PH3)
 for i, (lab, r) in enumerate([('detector confidence', 0.018), ('trajectory jerk', 0.099),
-                              ('closed-form scale', 0.025), ("solver's own residual", 0.62)]):
+                              ('closed-form scale', 0.025),
+                              ('a head trained to predict it', 0.406),
+                              ("solver's own residual", 0.62)]):
     usable = r > 0.3
     ax.barh(i, max(r, 0.006), height=0.42, color=ACC if usable else LINE)
     ax.text(0.012, i - 0.30, lab, va='bottom', fontsize=BODY_PT - 0.9,
             color=INK if usable else MUT)
-ax.text(0.645, 3.0, 'the only usable one', ha='left', va='center',
+ax.text(0.43, 3.0, 'learned, section 3.3', ha='left', va='center',
         fontsize=BODY_PT - 0.9, color=ACC)
-ax.set_xlim(0, 1.02); ax.set_ylim(-0.85, 3.75); ax.invert_yaxis()
+ax.text(0.645, 4.0, 'post hoc, not a prediction', ha='left', va='center',
+        fontsize=BODY_PT - 0.9, color=ACC)
+ax.set_xlim(0, 1.02); ax.set_ylim(-0.85, 4.75); ax.invert_yaxis()
 yd = cap(yc - 0.030 - PH3 - 0.014,
-         ['Rank correlation with the true 3D error. Nothing the',
-          'model can report predicts it; the solver measures its',
-          'own fit after the fact, and the gate reads that.'])
+         ['Rank correlation with the true 3D error. No signal already',
+          'present predicts it, but a head trained to does (0.41), which',
+          'is the route to dropping the solver from the gate.'])
 lead(yc - 0.030 - PH3 / 2, c_gate)
 
 # ---------------------------------------------------------------- footer
