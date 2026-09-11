@@ -100,7 +100,8 @@ discriminates alone. Under injected pixel noise the optimiser turns out to be th
 <em>more</em> stable of the two &mdash; the opposite of the usual amortisation story, and a
 consequence of its output being a six-parameter flight. Retraining the same network with the
 observation-noise model as an explicit knob, which a per-instance optimiser has no equivalent
-of, costs 12% on clean detections and keeps it ahead at every corruption level tested.</p>
+of, is free on clean detections and keeps the learned model ahead of the optimiser at every
+corruption level tested.</p>
 
 <div class="status"><b>Status of this draft</b>
 Every number below is measured and traceable to a log in the companion package; none are
@@ -398,16 +399,16 @@ while the network holds. We ran the test and it does not say that. Both methods 
 same corrupted detections, scored against the same clean reference.</p>
 
 <div class="tw"><table>
-<tr><th>corruption applied to both</th><th>ours<br>median m</th><th>+ noise aug<br>median m</th><th>paper 1<br>median m</th><th>ours<br>&times; clean</th><th>paper 1<br>&times; clean</th></tr>
-<tr><td>clean</td><td class="good">0.413</td><td>0.462</td><td>0.709</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>noise 2&nbsp;px</td><td>0.509</td><td class="good">0.471</td><td>0.717</td><td>1.23</td><td>1.01</td></tr>
-<tr><td>noise 4&nbsp;px</td><td>0.649</td><td class="good">0.485</td><td>0.750</td><td>1.57</td><td>1.06</td></tr>
-<tr><td>noise 8&nbsp;px</td><td>0.998</td><td class="good">0.555</td><td>0.733</td><td>2.41</td><td>1.03</td></tr>
-<tr><td>noise 16&nbsp;px</td><td>1.327</td><td class="good">0.703</td><td>0.769</td><td>3.21</td><td>1.08</td></tr>
-<tr><td>1 frame held</td><td class="good">0.449</td><td>0.498</td><td>0.698</td><td>1.09</td><td>0.98</td></tr>
-<tr><td>3 frames held</td><td class="good">0.475</td><td>0.498</td><td>0.705</td><td>1.15</td><td>0.99</td></tr>
-<tr><td>5 frames held</td><td>0.562</td><td class="good">0.561</td><td>0.806</td><td>1.36</td><td>1.14</td></tr>
-<tr><td>4&nbsp;px + 3 held</td><td>0.656</td><td class="good">0.565</td><td>0.738</td><td>1.59</td><td>1.04</td></tr>
+<tr><th>corruption applied to all three</th><th>ours<br>median m</th><th>+ noise aug<br>median m</th><th>paper 1<br>median m</th><th>ours<br>&times; clean</th><th>+aug<br>&times; clean</th><th>paper 1<br>&times; clean</th></tr>
+<tr><td>clean</td><td>0.413</td><td class="good">0.409</td><td>0.709</td><td>1.00</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>noise 2&nbsp;px</td><td>0.509</td><td class="good">0.410</td><td>0.717</td><td>1.23</td><td>1.00</td><td>1.01</td></tr>
+<tr><td>noise 4&nbsp;px</td><td>0.649</td><td class="good">0.449</td><td>0.750</td><td>1.57</td><td>1.10</td><td>1.06</td></tr>
+<tr><td>noise 8&nbsp;px</td><td>0.998</td><td class="good">0.562</td><td>0.733</td><td>2.41</td><td>1.37</td><td>1.03</td></tr>
+<tr><td>noise 16&nbsp;px</td><td>1.327</td><td class="good">0.670</td><td>0.769</td><td>3.21</td><td>1.64</td><td>1.08</td></tr>
+<tr><td>1 frame held</td><td>0.449</td><td class="good">0.447</td><td>0.698</td><td>1.09</td><td>1.09</td><td>0.98</td></tr>
+<tr><td>3 frames held</td><td>0.475</td><td class="good">0.463</td><td>0.705</td><td>1.15</td><td>1.13</td><td>0.99</td></tr>
+<tr><td>5 frames held</td><td>0.562</td><td class="good">0.535</td><td>0.806</td><td>1.36</td><td>1.31</td><td>1.14</td></tr>
+<tr><td>4&nbsp;px + 3 held</td><td>0.656</td><td class="good">0.462</td><td>0.738</td><td>1.59</td><td>1.13</td><td>1.04</td></tr>
 </table></div>
 
 <p class="note">A held frame is not a missing row. When the tracker loses the shuttle it carries
@@ -419,7 +420,9 @@ rates are 100% for both methods in every row and are omitted.</p>
 
 <p>Two reasons, and only one of them is a defect. The first is that paper 1's output is the integral of a six-parameter flight: whatever the pixels do, the answer is constrained to a six-dimensional family, so it is a heavily smoothed function of its observations and smoothing is exactly what buys relative stability. It pays for that stability with a 1.7&times; worse answer throughout the range a real detector occupies. The second is that our model was fitted to the error distribution of <em>our detector</em>. Injecting isotropic Gaussian displacement is a distribution shift, and an amortised estimator is by construction only as robust as the observation model it was fitted under. The optimiser has no training distribution to be shifted away from.</p>
 
-<p>The second reason is testable, because the observation model is a knob we hold and the optimiser does not. Retraining the identical architecture with per-sample Gaussian pixel noise, &sigma;&nbsp;&sim;&nbsp;U(0,&nbsp;8&nbsp;px), gives the middle column above. It costs 12% on clean detections (0.462 against 0.413&nbsp;m) and cuts the 16&nbsp;px degradation from 3.21&times; to 1.52&times;, which is enough to stay ahead of the optimiser at every corruption tested. This is the concrete form of what amortisation buys: an optimiser cannot be told what its observations' noise looks like, and a fitted estimator can be told exactly that, at a price in clean accuracy that is measurable and chooseable.</p>
+<p>The second reason is testable, because the observation model is a knob we hold and the optimiser does not. Retraining the identical architecture with per-sample Gaussian pixel noise, &sigma;&nbsp;&sim;&nbsp;U(0,&nbsp;8&nbsp;px), gives the third column. It cuts the 16&nbsp;px degradation from 3.21&times; to 1.64&times; and costs <b>nothing</b> on clean detections &mdash; 0.409 against 0.413&nbsp;m, a difference of 1%. It is at least as good as the unaugmented model in every row of the table. It also never crosses the optimiser: unlike the unaugmented model it is ahead at every corruption tested, including 16&nbsp;px. This is the concrete form of what amortisation buys: an optimiser cannot be told what its observations' noise looks like, and a fitted estimator can be told exactly that.</p>
+
+<p class="note">An earlier version of this table reported a 12% clean-accuracy cost for noise augmentation. That was an artefact of our own experiment: the augmented model had been trained without the landing constraint of &sect;3.2 that the baseline carries, so the comparison changed two things at once. Retrained with the constraint restored, the cost is zero. The confound was found by noticing that the two models' touch-down heights differed by 10&times; &mdash; a fingerprint of the constraint, not of the noise.</p>
 
 <p>Held frames tell a different and more relevant story, because they are the corruption a real tracker actually produces &mdash; a lost shuttle becomes a repeated pixel, not a displaced one. There we are ahead at every level tested: five held frames in a stroke of 27 puts us at 0.562&nbsp;m against 0.806, and the combined case, 4&nbsp;px of noise on top of 3 held frames, is 0.656 against 0.738. A repeated pixel is not noise the optimiser can average away; it is a stretch of arc asserting the shuttle stopped, which no flight in its six-parameter family can express.</p>
 
