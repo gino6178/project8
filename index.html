@@ -584,7 +584,12 @@ past 9e-3. The second stage ignores the quantity it was supposed to repair, beca
 quantity is a deterministic function of the same detected pixels the second stage already reads.
 The architecture is a five-frame detector followed by a stroke-level lifter, trained together;
 calling the second stage a repair module would be a claim a reviewer could refute in an
-afternoon.</p>
+afternoon. The five-frame branch is nonetheless kept, for a reason that is also measured: removing
+its <em>loss</em> (not its output) and training the same graph on the same fold gives
+0.540&nbsp;&rarr;&nbsp;0.499&nbsp;&rarr;&nbsp;0.495&nbsp;m over three epochs, never recovering the
+untrained 0.486&nbsp;m start, against 0.499&nbsp;&rarr;&nbsp;0.461&nbsp;&rarr;&nbsp;0.453&nbsp;m with it. Its
+prediction carries no information the stroke head uses; its loss regularises the shared trunk by
+about 4&nbsp;cm. Both halves of that sentence are experiments, not framing.</p>
 
 <p>Joint training does help the five-frame stage a great deal &mdash; 1.368&nbsp;&rarr;&nbsp;0.854&nbsp;m,
 which lands exactly on the separately trained five-frame baseline &mdash; so the shared trunk is
