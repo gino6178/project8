@@ -618,16 +618,35 @@ TrackNetV5's 96.77, on TrackNetV5's own protocol, with a trunk that moved 10% in
 so the like-for-like 2D comparison this architecture was shaped to preserve is preserved in
 measurement, not only in design.</p>
 
-<p>Joint training does help the five-frame stage a great deal &mdash; 1.368&nbsp;&rarr;&nbsp;0.854&nbsp;m,
-which lands exactly on the separately trained five-frame baseline &mdash; so the shared trunk is
-not being sacrificed to the 3D loss, and the 2D comparison of &sect;3.4 stays fair. What joint
-training does for the <em>final</em> 3D is within noise and not consistently positive: on this
-fold 0.486&nbsp;&rarr;&nbsp;0.453, but on the hardest venue (Brian YANG) it goes the wrong way,
-0.684&nbsp;&rarr;&nbsp;0.713 over three epochs while its five-frame stage improves
-1.815&nbsp;&rarr;&nbsp;1.091. Two folds, one in each direction: <b>we do not claim joint training
-improves the stroke-level stage.</b> It improves the stage that reads five frames, and leaves the
-stage that reads the stroke where it already was. The venue spread of the joint model, 0.453
-against 0.684, is the same 1.5&ndash;1.8&times; that &sect;3.6 measured.</p>
+<p>Joint training helps the five-frame stage a great deal &mdash; on this fold
+1.368&nbsp;&rarr;&nbsp;0.854&nbsp;m, landing exactly on the separately trained five-frame baseline, and
+on every fold below &mdash; so the shared trunk is not being sacrificed to the 3D loss, and the 2D
+comparison of &sect;3.4 stays fair. <b>What it does for the final 3D is nothing.</b> Held out four
+venues in turn, three epochs each:</p>
+
+<div class="tw"><table>
+<tr><th>held-out venue</th><th>untrained</th><th>ep 1</th><th>ep 2</th><th>ep 3</th><th>five-frame stage</th></tr>
+<tr><td>LIN Chun Yi</td><td class="good">0.324</td><td>0.365</td><td>0.469</td><td>0.372</td><td>1.15 &rarr; 0.66</td></tr>
+<tr><td>CHOU Tien Chen</td><td>0.524</td><td class="good">0.464</td><td>0.574</td><td>0.557</td><td>1.41 &rarr; 1.06</td></tr>
+<tr><td>Thuy Linh NGUYEN</td><td>0.486</td><td>0.499</td><td>0.461</td><td class="good">0.453</td><td>1.37 &rarr; 0.93</td></tr>
+<tr><td>Brian YANG</td><td class="good">0.684</td><td>0.736</td><td>0.730</td><td>0.713</td><td>1.82 &rarr; 1.09</td></tr>
+<tr><td><b>median</b></td><td><b>0.505</b></td><td>0.482</td><td>0.522</td><td><b>0.505</b></td><td></td></tr>
+</table></div>
+
+<p>Two folds of four improve on the untrained model, two get worse, and the median at a fixed third
+epoch (0.505&nbsp;m) is identical to the median before any training (0.505&nbsp;m). Taking each fold's
+best epoch gives 0.459&nbsp;m, but that selects the epoch <em>on the held-out venue</em> and on two
+folds it selects the untrained model &mdash; so it is not a number we would report as generalisation.
+<b>We do not claim joint training improves the stroke-level stage.</b> It improves the stage that reads
+five frames, it costs the detector nothing (&sect;3.4), and it leaves the stage that reads the stroke
+where it already was. The 0.453&nbsp;m quoted in the table above is one fold with its best epoch
+chosen; the cross-fold figure is 0.505&nbsp;m.</p>
+
+<p>The venue spread is 1.9&ndash;2.1&times;, matching the 1.8&times; of &sect;3.6 &mdash; but the
+<em>ordering</em> differs. CHOU Tien Chen is the easier of the two at stroke level (0.345 against
+0.418) and the harder here (0.524 against 0.486). Venue difficulty is therefore not a fixed property
+of the venue; it depends on which model is asking, which is one more reason the fold range rather than
+any single fold is the honest error bar.</p>
 
 <h2 id="nogt">4. Evidence that does not come from paper 1</h2>
 
