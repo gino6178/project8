@@ -435,6 +435,12 @@ disappears:</p>
 <tr><td>3D loss on the five-frame head instead</td><td class="bad">94.07</td><td>99.70</td><td>89.05</td><td>0.137</td></tr>
 </table></div>
 
+<p class="note">Those frames include venues the released model trained on, so we repeated the
+comparison on the three TrackNetV3 test matches alone &mdash; the only venues all three arms hold out
+(8,416 frames). The ordering is the same and the gap is wider: released 95.19, joint graph
+<b>95.15</b>, 3D loss on the five-frame head 91.64. Attaching it to the wrong head costs 3.55&nbsp;F1
+there, again entirely recall (91.39&nbsp;&rarr;&nbsp;84.67).</p>
+
 <p><b>Training the detector end to end against metric 3D costs nothing in 2D &mdash; provided the 3D
 loss is attached to a head that can actually satisfy it.</b> The joint graph matches the released
 detector to the second decimal on every column while its trunk has genuinely moved (a 10% relative
