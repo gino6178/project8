@@ -87,6 +87,13 @@ while the end-to-end pixel model reading five frames reaches 1.030&nbsp;m. Five 
 0.167&nbsp;s, over which a shuttle's arc is nearly straight and its height is not observable;
 one stroke is 27 frames at the median. Extending context past one stroke does not help and
 slightly hurts, because the extra frames belong to a different arc across a racket impact.
+Joining the detector and the height head into one differentiable graph &mdash; trained end to
+end, with the detector kept at five frames so its 2D output stays comparable to the released
+TrackNetV5 &mdash; reproduces the same gap inside a single model: 0.852&nbsp;m when the height
+head reads five frames, 0.453&nbsp;m when it reads the stroke, on the same weights and the same
+fold. Nothing available within five frames closes it: auxiliary losses that add no information,
+an in-window quadratic prior on height that the labels satisfy to 0.3&nbsp;mm, and letting the
+head read the pixels around each detection are all worth less than the epoch-to-epoch scatter.
 We also report what did not work, with numbers, because several of those attempts are the
 obvious ones: three formulations of physics, a scene depth map from a monocular foundation
 model, trunk pixel features, higher capacity, a stronger detector, and running paper 1's own
@@ -493,6 +500,75 @@ summary sits from the median camera gives a Spearman correlation with fold error
 with eight folds that is p&nbsp;=&nbsp;0.10, and the hardest venue is not the most unusual one
 (it ranks third). The direction is what &sect;4.4 would predict and the sample is too small to
 call it. We report it as a hypothesis, not a finding.</p>
+
+<h3>3.7 One graph from pixels to metres, and what it does not fix</h3>
+
+<p>Sections 3.2&ndash;3.6 measure a detector and a height head that never exchange a gradient. The
+obvious next question is whether joining them helps, and a deployment constraint makes the
+question sharp: to compare 2D detection against the released TrackNetV5 like for like, the
+detector must stay a five-frame network. So the joint graph keeps that shape &mdash;
+TrackNetV5-Lite trunk, a windowed soft-argmax that is differentiable through the peak, the
+stroke-level height head, and the closed-form horizontal solve &mdash; and trains all of it with
+one loss on metric 3D. The camera stays an input (&sect;7).</p>
+
+<p>Three components of that graph fail silently if built carelessly, and each cost a debugging
+round. <code>load_state_dict(strict=False)</code> loads <em>zero</em> parameters without raising when the
+checkpoint nests its weights under a different key, leaving a randomly initialised trunk that
+still trains and still reports a plausible number; the architecture has to be read from the
+checkpoint's own arguments, because "Lite" is a width multiplier of 0.5 and building it at 1.0
+is either a wall of size mismatches or, combined with the first bug, a silent random network.
+And a <em>global</em> soft-argmax collapses to the image centre on real heatmaps &mdash; 7.3&nbsp;px
+for hard argmax against 373&nbsp;px for the soft version &mdash; because the median peak is only
+0.66 and 147,456 background pixels outvote it. A local window around the (detached) hard argmax
+fixes it. A unit test on a synthetic Gaussian over zero background does <em>not</em> reproduce
+this; the failure depends on the background-to-peak ratio, and the test only bites when it uses
+the measured values.</p>
+
+<p>All numbers below are on one held-out venue (Thuy Linh NGUYEN, 703 strokes), scored on the
+clean subset with the model's own detections, so they are comparable to each other but not to
+&sect;3.2, which reports a different fold.</p>
+
+<div class="tw"><table>
+<tr><th>configuration</th><th>context the height head reads</th><th>3D median (m)</th></tr>
+<tr><td>frozen trunk, height from geometry alone</td><td>5 frames</td><td>0.887</td></tr>
+<tr><td>frozen trunk, + 24&nbsp;px appearance patch per frame</td><td>5 frames</td><td>0.852</td></tr>
+<tr><td>trunk trained jointly</td><td>5 frames</td><td>0.852</td></tr>
+<tr><td>&nbsp;&nbsp;+ mirror, in-window quadratic, landing constraint</td><td>5 frames</td><td>0.856</td></tr>
+<tr><td>stroke-level head, detector frozen</td><td>whole stroke</td><td>0.486</td></tr>
+<tr><td><b>joint graph, trained end to end</b></td><td>whole stroke</td><td class="good"><b>0.453</b></td></tr>
+</table></div>
+
+<p><b>Nothing available inside five frames closes the gap.</b> Auxiliary losses that add no
+information cost 0.4%; exact mirror augmentation, an in-window quadratic prior on height (label
+heights deviate from a quadratic by a median of 0.3&nbsp;mm over five frames, so the prior is
+almost exactly true), and the free landing constraint together move nothing. Freezing the trunk
+changes nothing either, so the detector is not the bottleneck. Even letting the height head look
+at the pixels around each detection &mdash; where streak length encodes speed and blob size
+encodes depth &mdash; is worth 4%, inside the epoch-to-epoch scatter. Widening the context from
+five frames to a stroke is worth <b>1.9&times;</b>. This is section 4.5's Cram&eacute;r&ndash;Rao
+argument arriving as a measurement rather than a simulation.</p>
+
+<p class="note"><b>The intermediate height is redundant, and we should say so.</b> The graph was
+built as a five-frame prediction that a stroke-level transformer then repairs, and it is
+tempting to describe it that way. It is not what happens. Deleting the five-frame height from
+the second stage's input gives 0.455&nbsp;m, shuffling it across frames gives 0.456&nbsp;m,
+against 0.453&nbsp;m with it &mdash; and the zero-initialised weights that read it never grew
+past 9e-3. The second stage ignores the quantity it was supposed to repair, because that
+quantity is a deterministic function of the same detected pixels the second stage already reads.
+The architecture is a five-frame detector followed by a stroke-level lifter, trained together;
+calling the second stage a repair module would be a claim a reviewer could refute in an
+afternoon.</p>
+
+<p>Joint training does help the five-frame stage a great deal &mdash; 1.368&nbsp;&rarr;&nbsp;0.854&nbsp;m,
+which lands exactly on the separately trained five-frame baseline &mdash; so the shared trunk is
+not being sacrificed to the 3D loss, and the 2D comparison of &sect;3.4 stays fair. What joint
+training does for the <em>final</em> 3D is within noise and not consistently positive: on this
+fold 0.486&nbsp;&rarr;&nbsp;0.453, but on the hardest venue (Brian YANG) it goes the wrong way,
+0.684&nbsp;&rarr;&nbsp;0.713 over three epochs while its five-frame stage improves
+1.815&nbsp;&rarr;&nbsp;1.091. Two folds, one in each direction: <b>we do not claim joint training
+improves the stroke-level stage.</b> It improves the stage that reads five frames, and leaves the
+stage that reads the stroke where it already was. The venue spread of the joint model, 0.453
+against 0.684, is the same 1.5&ndash;1.8&times; that &sect;3.6 measured.</p>
 
 <h2 id="nogt">4. Evidence that does not come from paper 1</h2>
 
