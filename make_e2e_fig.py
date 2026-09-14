@@ -1,3 +1,5 @@
+# SUPERSEDED by make_model_fig.py: this drew the exp89 graph before the stroke-level
+# head was joined in. Kept only for its history; fig/e2e.* has been removed.
 """The unified end-to-end graph, drawn.
 
 FIGURE CONTRACT

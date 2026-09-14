@@ -250,7 +250,9 @@ window cannot resolve. (c) Feeding the trunk's 64-d feature at the detected poin
 height head makes it worse, the strongest form of this paper's claim. (d) No signal the model
 can report predicts its own error; the solver's post-hoc fit residual does, and that is what
 gates the refinement.
-Vector source: <code>make_fig.py</code>, exported as SVG and PDF alongside the PNG.</figcaption>
+Vector source: <code>make_fig.py</code>, exported as SVG and PDF alongside the PNG. The two learned
+stages are drawn here as the separately trained pipeline the main results measure; &sect;3.7 joins
+them into one differentiable graph and draws that.</figcaption>
 </figure>
 
 
@@ -523,6 +525,17 @@ for hard argmax against 373&nbsp;px for the soft version &mdash; because the med
 fixes it. A unit test on a synthetic Gaussian over zero background does <em>not</em> reproduce
 this; the failure depends on the background-to-peak ratio, and the test only bites when it uses
 the measured values.</p>
+
+<figure>
+<img src="fig/model.png" alt="The joint graph from pixels to metres">
+<figcaption><b>The deployed graph, drawn as it is built and trained.</b> Every shape and parameter
+count is read from the checkpoint rather than retyped. The detector is a five-frame network so that
+its 2D output is scored against TrackNetV5 on equal terms; the two zero-parameter stages carry the
+geometry and are drawn differently from the learned ones, because that distinction is the paper's
+argument. The five-frame height head is drawn as what the ablation shows it to be &mdash; an
+auxiliary branch whose output the stroke-level head ignores. Vector source:
+<code>make_model_fig.py</code>, exported as SVG and PDF alongside the PNG.</figcaption>
+</figure>
 
 <p>All numbers below are on one held-out venue (Thuy Linh NGUYEN, 703 strokes), scored on the
 clean subset with the model's own detections, so they are comparable to each other but not to

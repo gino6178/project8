@@ -114,7 +114,8 @@ y, c_frames = box(TOP, 'Broadcast frames',
 flow(y, y - 0.034, '4 channels x 5 frames')
 y, c_trunk = box(y - 0.034, 'TrackNetV5-Lite trunk  (learned)',
                  ['heatmap head kept and supervised, soft-argmax to (u, v)',
-                  'F1 95.58 against the released 96.77 - the cost is recall'])
+                  'F1 95.58 against the released 96.77 - the cost is recall',
+                  'joined to the height head in one graph in section 3.7'])
 flow(y, y - 0.034, 'one (u, v) per frame')
 y, c_stroke = box(y - 0.034, 'One stroke, assembled',
                   ['the whole flight: 27 frames at the median',
@@ -122,7 +123,8 @@ y, c_stroke = box(y - 0.034, 'One stroke, assembled',
 flow(y, y - 0.034, '27 x (u, v)  +  camera')
 y, c_head = box(y - 0.034, 'Height head  (learned)',
                 ['6-layer transformer, 192-d, over the whole stroke',
-                 'reads the track and the camera.  Never the image.'],
+                 'reads the track and the camera.  Never the image.',
+                 'five frames instead of the stroke costs 1.9x (section 3.7)'],
                 fc=WARM, ec=ACC2, lw=1.4)
 flow(y, y - 0.034, 'one height Z per frame')
 y, c_solve = box(y - 0.034, 'Horizontal position  (algebra, not learned)',
