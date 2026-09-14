@@ -537,6 +537,20 @@ auxiliary branch whose output the stroke-level head ignores. Vector source:
 <code>make_model_fig.py</code>, exported as SVG and PDF alongside the PNG.</figcaption>
 </figure>
 
+<figure>
+<img src="fig/layers.png" alt="TrackNet3D layer by layer">
+<figcaption><b>Layer by layer.</b> (A) The detector is TrackNetV5-Lite as released: an R(2+1)D stem and a
+gated motion prompt, a three-level U-Net of FusedMBConv encoder blocks and MBConv decoder blocks with skip
+concatenations, a spatial-channel gate fed by the motion map at each decoder resolution, and a 1&times;1
+predictor giving one heatmap per frame. (B) The windowed soft-argmax turns each heatmap into a pixel
+coordinate differentiably and has no parameters. (C) Both lifting heads are the same six-layer pre-norm
+transformer encoder over 14-number tokens; the five-frame head reads one window, the stroke-level head
+reads the whole stroke, and its zero-initialised input for the five-frame height is the one the ablation
+finds ignored. (D) Height becomes a court position by intersecting the pixel ray with the plane at that
+height &mdash; algebra, not a layer. Every kernel, channel count and shape is read from the instantiated
+model and the checkpoint. Vector source: <code>make_layers_fig.py</code>.</figcaption>
+</figure>
+
 <p>All numbers below are on one held-out venue (Thuy Linh NGUYEN, 703 strokes), scored on the
 clean subset with the model's own detections, so they are comparable to each other but not to
 &sect;3.2, which reports a different fold.</p>
