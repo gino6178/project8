@@ -91,7 +91,8 @@ Joining the detector and the height head into one differentiable graph &mdash; t
 end, with the detector kept at five frames so its 2D output stays comparable to the released
 TrackNetV5 &mdash; reproduces the same gap inside a single model: 0.852&nbsp;m when the height
 head reads five frames, 0.453&nbsp;m when it reads the stroke, on the same weights and the same
-fold. Nothing available within five frames closes it: auxiliary losses that add no information,
+fold &mdash; and the detector inside it scores F1 96.77 on TrackNetV5's own protocol, exactly the
+released model's figure, so the 3D output is obtained at no measured 2D cost. Nothing available within five frames closes it: auxiliary losses that add no information,
 an in-window quadratic prior on height that the labels satisfy to 0.3&nbsp;mm, and letting the
 head read the pixels around each detection are all worth less than the epoch-to-epoch scatter.
 We also report what did not work, with numbers, because several of those attempts are the
@@ -423,7 +424,28 @@ open direction rather than a solved one.</p>
 <tr><td>same trunk, also emitting 3D</td><td>95.58</td><td>99.18</td><td>92.23</td></tr>
 </table></div>
 
-<p>The cost is 1.19 F1 points and it is <em>entirely recall</em>: precision is unchanged to within a
+<p>That table is the <em>separately</em> trained two-stage model. Re-running the same protocol on the
+joint graph of &sect;3.7 &mdash; same frames, same binarise-and-contour scoring &mdash; the cost
+disappears:</p>
+
+<div class="tw"><table>
+<tr><th>model</th><th>F1</th><th>precision</th><th>recall</th><th>trunk moved &Vert;&Delta;&Vert;/&Vert;W&Vert;</th></tr>
+<tr><td>TrackNetV5-Lite, released</td><td>96.77</td><td>99.29</td><td>94.38</td><td>&mdash;</td></tr>
+<tr><td><b>joint graph (&sect;3.7), 3D loss on the stroke head</b></td><td class="good"><b>96.77</b></td><td>99.30</td><td>94.37</td><td>0.100</td></tr>
+<tr><td>3D loss on the five-frame head instead</td><td class="bad">94.07</td><td>99.70</td><td>89.05</td><td>0.137</td></tr>
+</table></div>
+
+<p><b>Training the detector end to end against metric 3D costs nothing in 2D &mdash; provided the 3D
+loss is attached to a head that can actually satisfy it.</b> The joint graph matches the released
+detector to the second decimal on every column while its trunk has genuinely moved (a 10% relative
+weight change, 36% on the largest single tensor), so this is not the trivial case of weights that
+barely trained. Attach the same 3D loss to the five-frame head instead and the detector loses
+2.70&nbsp;F1, all of it recall (94.38&nbsp;&rarr;&nbsp;89.05) at slightly <em>higher</em> precision.
+That is this paper's thesis arriving from the 2D side: five frames cannot resolve height
+(&sect;4.5), so the gradient has nowhere to go but into deforming the detector, and it pays in missed
+frames. A head that can solve the problem leaves the detector alone.</p>
+
+<p>In the older, separately trained setup the cost is 1.19 F1 points and it is <em>entirely recall</em>: precision is unchanged to within a
 tenth of a point. Adding the 3D output did not make detections sloppier; it made the detector
 more conservative, so more frames fail to cross the threshold. A soft-argmax evaluation cannot
 see this — it returns a coordinate for every frame and so can never record a miss — which is
@@ -590,6 +612,11 @@ its <em>loss</em> (not its output) and training the same graph on the same fold 
 untrained 0.486&nbsp;m start, against 0.499&nbsp;&rarr;&nbsp;0.461&nbsp;&rarr;&nbsp;0.453&nbsp;m with it. Its
 prediction carries no information the stroke head uses; its loss regularises the shared trunk by
 about 4&nbsp;cm. Both halves of that sentence are experiments, not framing.</p>
+
+<p>The 2D side of this is in &sect;3.4: the joint graph's detector scores F1 96.77 against the released
+TrackNetV5's 96.77, on TrackNetV5's own protocol, with a trunk that moved 10% in relative norm &mdash;
+so the like-for-like 2D comparison this architecture was shaped to preserve is preserved in
+measurement, not only in design.</p>
 
 <p>Joint training does help the five-frame stage a great deal &mdash; 1.368&nbsp;&rarr;&nbsp;0.854&nbsp;m,
 which lands exactly on the separately trained five-frame baseline &mdash; so the shared trunk is
